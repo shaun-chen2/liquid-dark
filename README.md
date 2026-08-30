@@ -1,3 +1,5 @@
+**简体中文** | [English](README.en.md)
+
 # 液态玻璃深色
 
 把所有网站变成深色，再叠一层苹果液态玻璃质感。**Firefox 和 Chrome 都支持。**
