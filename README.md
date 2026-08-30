@@ -7,6 +7,8 @@
 引擎、面板、设置页两个浏览器共用同一份源码，只有三个文件是平台特有的
 （见下方「Chrome 版」一节），所以修 bug 只需要改一处。
 
+**[▶ 从 Firefox 附加组件商店安装](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)** · Chrome 见[下方说明](#chrome-版)
+
 ---
 
 ## 三层架构
@@ -99,19 +101,38 @@ Chrome 本来就会对站点报告 `prefers-color-scheme: dark`，这一层基�
 
 ---
 
-## 安装（Firefox）
+## 安装
 
-需要 Firefox 142+。
+### Firefox —— 从附加组件商店（推荐）
 
-**临时载入**（重启失效）：`about:debugging#/runtime/this-firefox` → 临时载入附加组件 → 选 `manifest.json`
+**[👉 addons.mozilla.org · 液态玻璃深色](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)**
 
-**永久安装**：正式版 Firefox 强制签名，`xpinstall.signatures.required` 在 release/beta 上无效。打包后传 AMO 走 unlisted 自行分发签名：
+点「添加到 Firefox」即可，之后新版本会自动更新。需要 Firefox 142+。
+
+### Chrome
+
+见上方「[Chrome 版](#chrome-版)」——跑 `bash build-chrome.sh`，然后把生成的 zip 拖进
+`chrome://extensions`（需先打开「开发者模式」）。
+
+<details>
+<summary><b>从源码自行构建（开发 / 尝鲜用）</b></summary>
+
+打包成 xpi：
 
 ```bash
 bash build.sh
 ```
 
-然后到 https://addons.mozilla.org/zh-CN/developers/addon/submit/distribution 上传 `liquid-dark.xpi`，选「自行发布」，源代码那题选「否」（`build.sh` 只做 zip，不做任何转换）。
+**临时载入**（重启后失效，改代码调试用这个）：`about:debugging#/runtime/this-firefox`
+→ 临时载入附加组件 → 选 `manifest.json`
+
+**注意**：正式版和 Beta 版 Firefox 强制要求扩展签名，`xpinstall.signatures.required`
+这个开关在它们上面**无效**（只在 Developer Edition / Nightly / ESR / unbranded 上生效）。
+所以自己打的未签名 xpi 只能临时载入；想永久安装就用上面的商店版本，或者把 xpi 传到
+[AMO](https://addons.mozilla.org/developers/addon/submit/distribution) 走「自行发布」签名
+（源代码那题选「否」——`build.sh` 只做 zip，不做任何编译、压缩或打包转换）。
+
+</details>
 
 ---
 

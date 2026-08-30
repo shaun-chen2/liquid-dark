@@ -6,6 +6,8 @@ Turns every website dark, then layers on an Apple-style liquid-glass finish. **W
 
 The engines, popup and options page share one source tree across both browsers — only three files are platform-specific (see [Chrome build](#chrome-build)), so a bug fix only has to be written once.
 
+**[▶ Install from Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)** · for Chrome, see [below](#chrome-build)
+
 ---
 
 ## Three-layer architecture
@@ -103,19 +105,40 @@ The substitute is `engine-prefers.js`: it parses stylesheets, lifts the rules th
 
 ---
 
-## Install (Firefox)
+## Install
 
-Requires Firefox 142+.
+### Firefox — from the add-ons store (recommended)
 
-**Temporary load** (gone after restart): `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → pick `manifest.json`
+**[👉 addons.mozilla.org · Liquid Glass Dark](https://addons.mozilla.org/en-US/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)**
 
-**Permanent install:** release Firefox mandates signatures, and `xpinstall.signatures.required` has no effect on release/beta builds. Package it and upload to AMO for unlisted (self-distribution) signing:
+Click "Add to Firefox" and you're done; future versions update automatically. Requires Firefox 142+.
+
+### Chrome
+
+See [Chrome build](#chrome-build) above — run `bash build-chrome.sh`, then drag the resulting zip
+onto `chrome://extensions` (turn on Developer mode first).
+
+<details>
+<summary><b>Building from source (for development)</b></summary>
+
+Package as an xpi:
 
 ```bash
 bash build.sh
 ```
 
-Then upload `liquid-dark.xpi` at https://addons.mozilla.org/developers/addon/submit/distribution, choose **"On your own"**, and answer **No** to the source-code question (`build.sh` only zips — no compilation, minification or bundling of any kind).
+**Temporary load** (gone after restart; this is what you want while editing code):
+`about:debugging#/runtime/this-firefox` → Load Temporary Add-on → pick `manifest.json`
+
+**Note:** release and beta Firefox mandate extension signatures, and the
+`xpinstall.signatures.required` pref has **no effect** on those builds (it only works on
+Developer Edition, Nightly, ESR and unbranded builds). So an unsigned xpi you built yourself
+can only be loaded temporarily. For a permanent install, use the store version above, or upload
+the xpi to [AMO](https://addons.mozilla.org/developers/addon/submit/distribution) for
+self-distribution signing (answer **No** to the source-code question — `build.sh` only zips,
+with no compilation, minification or bundling of any kind).
+
+</details>
 
 ---
 
