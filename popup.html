@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+  <title>液态玻璃深色</title>
+</head>
+<body>
+  <div class="amb"></div>
+
+  <header class="glass">
+    <div class="dot"></div>
+    <div class="ttl">
+      <strong>液态玻璃深色</strong>
+      <span id="host">—</span>
+    </div>
+    <label class="sw" title="总开关">
+      <input type="checkbox" id="enabled"><span></span>
+    </label>
+  </header>
+
+  <section class="glass state" id="stateBox">
+    <div class="s-main" id="stateMain">读取中…</div>
+    <div class="s-sub" id="stateSub"></div>
+  </section>
+
+  <section class="glass">
+    <div class="lbl">本站模式</div>
+    <div class="seg" id="seg">
+      <button data-m="">跟随全局</button>
+      <button data-m="native">原生</button>
+      <button data-m="dynamic">动态</button>
+      <button data-m="invert">反色</button>
+      <button data-m="off">关闭</button>
+    </div>
+    <p class="hint" id="modeHint"></p>
+  </section>
+
+  <section class="glass">
+    <div class="row"><span class="lbl">深色强度</span><span class="val" id="v_darkness"></span></div>
+    <input type="range" id="darkness" min="0" max="100" step="5">
+    <div class="row"><span class="lbl">对比度</span><span class="val" id="v_contrast"></span></div>
+    <input type="range" id="contrast" min="60" max="140" step="5">
+  </section>
+
+  <section class="glass">
+    <div class="row">
+      <span class="lbl">圆角</span>
+      <label class="sw sm"><input type="checkbox" id="roundCorners"><span></span></label>
+    </div>
+    <div id="roundOpts">
+      <div class="row"><span class="lbl">半径</span><span class="val" id="v_radius"></span></div>
+      <input type="range" id="radius" min="0" max="34" step="2">
+    </div>
+  </section>
+
+  <section class="glass">
+    <div class="row">
+      <span class="lbl">液态玻璃</span>
+      <label class="sw sm"><input type="checkbox" id="glass"><span></span></label>
+    </div>
+    <div id="glassOpts">
+      <div class="row"><span class="lbl">模糊</span><span class="val" id="v_glassBlur"></span></div>
+      <input type="range" id="glassBlur" min="0" max="60" step="2">
+      <div class="row"><span class="lbl">通透度</span><span class="val" id="v_glassOpacity"></span></div>
+      <input type="range" id="glassOpacity" min="20" max="95" step="5">
+      <div class="row">
+        <span class="lbl">氛围背景</span>
+        <label class="sw sm"><input type="checkbox" id="ambience"><span></span></label>
+      </div>
+      <p class="hint">玻璃模糊的是背后的东西。页面底是纯色时看不出效果，氛围背景就是给它点东西可折射。只开圆角时这层不生效。</p>
+    </div>
+  </section>
+
+  <footer>
+    <span id="stats">—</span>
+    <a href="#" id="openOptions">设置</a>
+  </footer>
+
+  <script src="platform.js"></script>
+<script src="common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

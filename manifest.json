@@ -1,0 +1,72 @@
+{
+  "manifest_version": 2,
+  "name": "液态玻璃深色",
+  "short_name": "液态深色",
+  "version": "1.8.0",
+  "description": "把所有网站变成深色 + 苹果液态玻璃质感。优先用站点自带深色，没有才动态改色，顽固站点可切滤镜反色。",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "liquid-dark@chenhehe.local",
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": [
+          "none"
+        ]
+      }
+    }
+  },
+  "permissions": [
+    "<all_urls>",
+    "storage",
+    "browserSettings"
+  ],
+  "background": {
+    "scripts": [
+      "platform.js",
+      "common.js",
+      "background.js"
+    ]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "all_frames": true,
+      "run_at": "document_start",
+      "css": [
+        "preload.css"
+      ],
+      "js": [
+        "platform.js",
+        "common.js",
+        "color.js",
+        "engine-dark.js",
+        "engine-glass.js",
+        "engine-prefers.js",
+        "content.js"
+      ],
+      "match_about_blank": true
+    }
+  ],
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "液态玻璃深色",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png"
+    }
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  }
+}

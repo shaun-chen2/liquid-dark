@@ -1,0 +1,13 @@
+# 构建产物
+*.xpi
+*.zip
+*.crx
+*.pem
+signed/
+web-ext-artifacts/
+
+# 生成的 Chrome 版（跑 build-chrome.sh 重新生成即可）
+/liquid-dark-chrome/
+
+node_modules/
+.DS_Store

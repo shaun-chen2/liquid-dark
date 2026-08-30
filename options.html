@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>液态玻璃深色 · 设置</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 32px 20px 72px; min-height: 100vh; color: #ececf2;
+      background: #0d0d11;
+      background-image:
+        radial-gradient(900px 640px at 8% -10%, rgba(116,92,255,.26), transparent 62%),
+        radial-gradient(760px 600px at 94% 4%, rgba(0,168,255,.20), transparent 64%),
+        radial-gradient(900px 700px at 50% 112%, rgba(255,82,150,.16), transparent 60%);
+      background-attachment: fixed;
+      font: 14px/1.65 -apple-system, "PingFang SC", system-ui, sans-serif;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    .lead { color: #9c9cab; font-size: 12.5px; margin: 0 0 22px; }
+    section {
+      padding: 16px 18px; margin-bottom: 14px; border-radius: 18px;
+      background-color: rgba(32,32,40,.55);
+      background-image: linear-gradient(to bottom, rgba(255,255,255,.07), rgba(255,255,255,.012) 38%, rgba(255,255,255,0) 72%);
+      -webkit-backdrop-filter: blur(26px) saturate(180%);
+      backdrop-filter: blur(26px) saturate(180%);
+      outline: 1px solid rgba(255,255,255,.11); outline-offset: -1px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.14), inset 0 -1px 0 rgba(0,0,0,.30), 0 12px 36px rgba(0,0,0,.40);
+    }
+    h2 { font-size: 12.5px; margin: 0 0 12px; color: #9fb8ff; letter-spacing: .5px; }
+    .item { display: flex; align-items: flex-start; gap: 11px; padding: 9px 0; border-top: 1px solid rgba(255,255,255,.08); }
+    .item:first-of-type { border-top: 0; padding-top: 0; }
+    .item input[type=checkbox] { margin: 4px 0 0; accent-color: #8b7bff; flex: none; }
+    .txt b { font-weight: 600; font-size: 13.5px; display: block; }
+    .txt small { color: #9c9cab; font-size: 12px; }
+    .modes { display: flex; gap: 6px; flex-wrap: wrap; }
+    .modes label {
+      flex: 1; min-width: 118px; padding: 10px 12px; border-radius: 12px; cursor: pointer;
+      background: rgba(255,255,255,.05); border: 1px solid transparent;
+    }
+    .modes label:has(input:checked) { background: rgba(139,123,255,.20); border-color: rgba(139,123,255,.55); }
+    .modes input { display: none; }
+    .modes b { display: block; font-size: 13px; }
+    .modes small { color: #9c9cab; font-size: 11.5px; line-height: 1.45; display: block; margin-top: 2px; }
+    .num { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 9px 0; border-top: 1px solid rgba(255,255,255,.08); }
+    .num input[type=range] { flex: 1; max-width: 240px; accent-color: #8b7bff; }
+    .num .v { min-width: 54px; text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+    textarea {
+      width: 100%; min-height: 108px; padding: 10px 11px; border-radius: 12px; resize: vertical;
+      font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+      color: #ececf2; background: rgba(0,0,0,.30); border: 1px solid rgba(255,255,255,.10);
+    }
+    .note { font-size: 12px; color: #8b8b9a; margin-top: 10px; }
+    .bar {
+      position: fixed; left: 0; right: 0; bottom: 0; padding: 11px 20px;
+      display: flex; gap: 10px; align-items: center; justify-content: center;
+      background: rgba(13,13,17,.72);
+      -webkit-backdrop-filter: blur(22px); backdrop-filter: blur(22px);
+      border-top: 1px solid rgba(255,255,255,.09);
+    }
+    button {
+      padding: 8px 18px; font: inherit; font-size: 13px; cursor: pointer; color: #ececf2;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
+    }
+    button.primary { background: linear-gradient(140deg, #8b7bff, #38c6ff); border-color: transparent; color: #fff; }
+    button:hover { border-color: rgba(255,255,255,.3); }
+    #saved { color: #8fe0a8; font-size: 12.5px; opacity: 0; transition: opacity .2s; }
+    #saved.on { opacity: 1; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    td { padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,.07); }
+    td:last-child { text-align: right; }
+    .warn { color: #ffb4b4; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <h1>液态玻璃深色</h1>
+  <p class="lead">把所有网站变成深色，再叠一层苹果液态玻璃质感。优先用站点自带的深色模式，没有才自己算。</p>
+
+  <section>
+    <h2>总开关</h2>
+    <label class="item"><input type="checkbox" id="enabled">
+      <span class="txt"><b>启用扩展</b><small>关掉后恢复浏览器原状，包括还原 prefers-color-scheme 的全局覆盖。</small></span></label>
+    <label class="item"><input type="checkbox" id="nativeOverride">
+      <span class="txt"><b>让所有站点认为你偏好深色</b><small>通过 <code>browserSettings.overrideContentColorScheme</code> 全局把 <code>prefers-color-scheme</code> 设成 dark。有深色设计的站点会直接切过去，这是效果最好的一层。<span id="nativeState"></span></small></span></label>
+    <label class="item"><input type="checkbox" id="respectNativeDark">
+      <span class="txt"><b>站点本来就是深色时不再处理</b><small>自动模式下会先探测页面背景亮度，已经够暗就不动它，避免二次翻转把颜色搞坏。</small></span></label>
+  </section>
+
+  <section>
+    <h2>默认模式</h2>
+    <div class="modes">
+      <label><input type="radio" name="mode" value="auto"><b>自动</b><small>探测站点有没有深色，没有才动态改色。推荐。</small></label>
+      <label><input type="radio" name="mode" value="native"><b>只用原生</b><small>只靠站点自带深色，绝不改色。零瑕疵但覆盖面小。</small></label>
+      <label><input type="radio" name="mode" value="dynamic"><b>动态改色</b><small>一律自己算。图片和图标完全不受影响。</small></label>
+      <label><input type="radio" name="mode" value="invert"><b>滤镜反色</b><small>整页反色。万能，但色相会偏，背景图图标会被反白。</small></label>
+    </div>
+    <p class="note">单个站点可以在工具栏面板里单独指定模式，会覆盖这里的默认值。</p>
+  </section>
+
+  <section>
+    <h2>改色</h2>
+    <div class="num"><span>深色强度</span><input type="range" id="darkness" min="0" max="100" step="5"><span class="v" id="v_darkness"></span></div>
+    <label class="item"><input type="checkbox" id="darkenCanvas">
+      <span class="txt"><b>处理 canvas 上的浅色内容</b><small>canvas 的像素是画出来的，CSS 改不了颜色——代码编辑器的小地图、部分图表就画在上面，会在深色页面上留一大块白。开启后会采样判断它整体是不是又亮又平，是才反色；照片和本来就深的图表不动。</small></span></label>
+    <div class="num"><span>对比度</span><input type="range" id="contrast" min="60" max="140" step="5"><span class="v" id="v_contrast"></span></div>
+  </section>
+
+  <section>
+    <h2>圆角</h2>
+    <label class="item"><input type="checkbox" id="roundCorners">
+      <span class="txt"><b>给面板加圆角</b><small>和玻璃是两件独立的事。只想要圆角、不想要磨砂半透明的话，把下面的玻璃关掉即可。通栏的吸顶条保持直角。</small></span></label>
+    <div class="num"><span>半径</span><input type="range" id="radius" min="0" max="34" step="2"><span class="v" id="v_radius"></span></div>
+  </section>
+
+  <section>
+    <h2>液态玻璃</h2>
+    <label class="item"><input type="checkbox" id="glass">
+      <span class="txt"><b>启用玻璃质感</b><small>给吸顶栏、导航、侧栏、弹窗、卡片加背景模糊、半透明底、顶边高光和环形描边。圆角另有开关，互不影响。</small></span></label>
+    <label class="item"><input type="checkbox" id="ambience">
+      <span class="txt"><b>氛围背景</b><small>玻璃模糊的是背后的东西，页面底是纯色时根本看不出效果。这一层在页面最底铺一层柔和的彩色渐变，玻璃才有东西可折射。只开圆角不开玻璃时这层不生效。</small></span></label>
+    <div class="num"><span>模糊半径</span><input type="range" id="glassBlur" min="0" max="60" step="2"><span class="v" id="v_glassBlur"></span></div>
+    <div class="num"><span>通透度</span><input type="range" id="glassOpacity" min="20" max="95" step="5"><span class="v" id="v_glassOpacity"></span></div>
+    <div class="num"><span>单页最多几块玻璃</span><input type="range" id="glassMax" min="5" max="80" step="5"><span class="v" id="v_glassMax"></span></div>
+    <p class="note">backdrop-filter 很吃 GPU，块数上限是性能闸门。页面卡就把它调小。</p>
+  </section>
+
+  <section>
+    <h2>完全不干预的域名</h2>
+    <textarea id="blocklist" placeholder="每行一个，例如：&#10;bank.example.com&#10;*.internal.corp"></textarea>
+    <p class="note">写 example.com 会连子域一起匹配；写 *.example.com 只匹配它和它的子域。</p>
+  </section>
+
+  <section>
+    <h2>已单独设置模式的站点</h2>
+    <table id="siteTable"><tbody></tbody></table>
+    <p class="note" id="noSites">还没有。在工具栏面板里给单个站点选模式即可。</p>
+  </section>
+</div>
+
+<div class="bar">
+  <button class="primary" id="save">保存</button>
+  <button id="reset">恢复默认</button>
+  <span id="saved">已保存</span>
+</div>
+
+<script src="platform.js"></script>
+<script src="common.js"></script>
+<script src="options.js"></script>
+</body>
+</html>
