@@ -80,8 +80,6 @@
 
     if (effMode === 'invert') {
       LGDark.start('invert', settings);
-      // 反色模式下再叠玻璃会被一起反掉，没意义
-      return;
     }
 
     if (effMode === 'dynamic') {
@@ -152,12 +150,16 @@
 
   /* 传给玻璃引擎的参数：磨砂要页面是深色才给，圆角不限；
    * 氛围背景只服务于玻璃，只开圆角时不该改页面底色。 */
+  /* 圆角和玻璃在所有"开着"的模式下都生效（原生 / 动态 / 反色），开关打开就该有效果。
+   * 反色模式：玻璃底色反着给（反完是深色）；氛围背景会被整页反色搞坏，所以只在非反色下给。 */
   function surfaceOpts() {
-    var pageIsDark = (effMode === 'dynamic') || nativeDark;
-    var glassOK = !!settings.glass && pageIsDark;
+    var on = effMode !== 'off';
+    var inv = effMode === 'invert';
     return Object.assign({}, settings, {
-      glass: glassOK,
-      ambience: !!settings.ambience && glassOK
+      glass: !!settings.glass && on,
+      roundCorners: !!settings.roundCorners && on,
+      ambience: !!settings.ambience && on && !inv,
+      invert: inv
     });
   }
 

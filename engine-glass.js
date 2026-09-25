@@ -47,6 +47,17 @@ var LGGlass = (function () {
   var opts = null;
   var styleEl = null;
   var applied = 0;
+  var appliedIn = 0;
+  var IN_MAX = 80;   // 内层不做 backdrop-filter，便宜得多，额度单独算
+
+  function mark(el, kind) {
+    var v = kind === true ? '' : kind;
+    if (v === 'in') { if (appliedIn >= IN_MAX) return false; appliedIn++; }
+    else { if (applied >= opts.glassMax) return false; applied++; }
+    el.setAttribute('data-lgg', v);
+    return true;
+  }
+  function full() { return applied >= opts.glassMax && appliedIn >= IN_MAX; }
   var mo = null;
   var timer = 0;
   var running = false;
@@ -66,14 +77,18 @@ var LGGlass = (function () {
       parts.push('html [data-lgg]{border-radius:' + opts.radius + 'px !important}');
       // 通栏的吸顶 / 悬浮条加圆角很怪，保持直角
       parts.push('html [data-lgg="edge"]{border-radius:0 !important}');
+      // 内层圆角比外层小一点，同心圆角才好看
+      parts.push('html [data-lgg="in"]{border-radius:' + Math.max(6, opts.radius - 4) + 'px !important}');
     }
 
     if (opts.glass) {
       var a = (opts.glassOpacity / 100).toFixed(3);
       var b = opts.glassBlur;
+      // 反色模式下整页会被 invert，玻璃的底色要先反着给，反完才是深色
+      var tint = opts.invert ? '223,223,215' : '32,32,40';
       parts.push([
         'html [data-lgg]{',
-        'background-color:rgba(32,32,40,', a, ') !important;',
+        'background-color:rgba(', tint, ',', a, ') !important;',
         // 顶边那道高光，液态玻璃的关键笔触
         'background-image:linear-gradient(to bottom,rgba(255,255,255,.070),rgba(255,255,255,.012) 38%,rgba(255,255,255,0) 72%) !important;',
         '-webkit-backdrop-filter:blur(', b, 'px) saturate(180%) !important;',
@@ -86,6 +101,18 @@ var LGGlass = (function () {
       ].join(''));
       parts.push('html [data-lgg="edge"]{outline:none !important;' +
         'box-shadow:inset 0 -1px 0 rgba(255,255,255,.10),0 8px 28px rgba(0,0,0,.30) !important}');
+
+      // 内层玻璃：不再模糊，薄白提亮（反色模式下给薄黑，反完就是提亮）
+      var ai = (0.04 + (opts.glassOpacity / 100) * 0.06).toFixed(3);
+      var lift = opts.invert ? '0,0,0' : '255,255,255';
+      parts.push([
+        'html [data-lgg="in"]{',
+        'background-color:rgba(', lift, ',', ai, ') !important;',
+        'background-image:linear-gradient(to bottom,rgba(', lift, ',.06),rgba(', lift, ',0) 60%) !important;',
+        '-webkit-backdrop-filter:none !important;backdrop-filter:none !important;',
+        'outline:1px solid rgba(', lift, ',.10) !important;outline-offset:-1px !important;',
+        'box-shadow:inset 0 1px 0 rgba(', lift, ',.10),0 4px 16px rgba(0,0,0,.26) !important}'
+      ].join(''));
     }
 
     // 预标记：加载时就给隐藏的浮窗候选铺上不透明底色，
@@ -189,7 +216,37 @@ var LGGlass = (function () {
       if (looksPop && smallEnough) return 'pop';
     }
 
-    if (el.closest && el.closest('[data-lgg]')) return false;   // 别在玻璃上再叠玻璃
+    /* 嵌套：允许"大玻璃里套小玻璃"。
+     * 内层（'in'）不再做 backdrop-filter —— 父级已经把背景糊过了，再糊一次只会叠加发闷，
+     * 还多一个 GPU 图层。内层只铺一层薄白提亮 + 细边 + 顶光，读出来就是"浮起来的一块"。
+     * 限制：不超过 glassDepth 层；和父级差不多大（>85% 面积）的纯包装层不算；浮层里面不再分层。 */
+    var host = el.parentElement && el.parentElement.closest ? el.parentElement.closest('[data-lgg]') : null;
+    var nested = false;
+    if (host) {
+      if (host.getAttribute('data-lgg') === 'pop') return false;
+      var depth = 0, p = host;
+      while (p && depth < 8) {
+        depth++;
+        p = p.parentElement && p.parentElement.closest ? p.parentElement.closest('[data-lgg]') : null;
+      }
+      if (depth >= (opts.glassDepth || 1)) return false;
+      var hr = host.getBoundingClientRect();
+      var ha = hr.width * hr.height;
+      if (ha > 0 && rect.width * rect.height > ha * 0.85) return false;
+      nested = true;
+    }
+
+    var area = rect.width * rect.height;
+
+    if (nested) {
+      if (rect.width >= vw * 0.95) return false;
+      if (TAGS[tag] || ROLES[role]) return 'in';
+      // 内层卡片常常没有投影（投影在外层容器上），有底色 + 圆角/边框/投影任一即可
+      var radius = parseFloat(cs.borderTopLeftRadius) || 0;
+      var bw = parseFloat(cs.borderTopWidth) || 0;
+      if (hasBg && area >= 6000 && (hasShadow || radius >= 4 || bw > 0)) return 'in';
+      return false;
+    }
 
     // 吸顶 / 悬浮条天生就是通栏的，不受下面的宽度判据约束
     if (pos === 'fixed' || pos === 'sticky') return 'edge';
@@ -200,8 +257,7 @@ var LGGlass = (function () {
     if (ROLES[role]) return true;
 
     // 卡片 / 弹窗：有底色 + 有投影就够了。
-    // 不再要求自带圆角 —— 很多站点用直角卡片，而圆角本来就是我们自己加的。
-    if (hasShadow && hasBg && rect.width * rect.height >= 9000) return true;
+    if (hasShadow && hasBg && area >= 9000) return true;
 
     return false;
   }
@@ -241,17 +297,15 @@ var LGGlass = (function () {
   /* 判过的元素记下来，别每次 DOM 一动就把整个文档重量一遍 ——
    * getBoundingClientRect + getComputedStyle + closest 三件套在大页面上很贵。 */
   function scanIn(root) {
-    if (!running || applied >= opts.glassMax) return;
+    if (!running || full()) return;
     var els;
     try { els = root.querySelectorAll('*'); } catch (e) { return; }
-    for (var i = 0; i < els.length && applied < opts.glassMax; i++) {
+    for (var i = 0; i < els.length && !full(); i++) {
       var el = els[i];
       if (evaluated.has(el)) continue;
       evaluated.add(el);
       var kind = isSurface(el);
-      if (!kind) continue;
-      el.setAttribute('data-lgg', kind === true ? '' : kind);
-      applied++;
+      if (kind) mark(el, kind);
     }
   }
 
@@ -354,13 +408,13 @@ var LGGlass = (function () {
     timer = 0;
     var q = queue;
     queue = [];
-    for (var i = 0; i < q.length && applied < opts.glassMax; i++) {
+    for (var i = 0; i < q.length && !full(); i++) {
       var n = q[i];
       if (!n || n.nodeType !== 1 || !n.isConnected) continue;
       if (!evaluated.has(n)) {
         evaluated.add(n);
         var kind = isSurface(n);
-        if (kind) { n.setAttribute('data-lgg', kind === true ? '' : kind); applied++; }
+        if (kind) mark(n, kind);
       }
       scanIn(n);
     }
@@ -438,10 +492,11 @@ var LGGlass = (function () {
       var pps = document.querySelectorAll('[data-lgpop]');
       for (var q = 0; q < pps.length; q++) pps[q].removeAttribute('data-lgpop');
       applied = 0;
+      appliedIn = 0;
       evaluated = new WeakSet();
       queue = [];
     },
 
-    stats: function () { return { surfaces: applied }; }
+    stats: function () { return { surfaces: applied, nested: appliedIn }; }
   };
 })();

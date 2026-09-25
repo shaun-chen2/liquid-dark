@@ -32,7 +32,8 @@ var LG_DEFAULTS = {
   glass: true,          // 液态玻璃（磨砂 + 半透明 + 高光 + 描边）
   glassBlur: 26,        // 背景模糊半径 px
   glassOpacity: 55,     // 玻璃不透明度 0-100
-  glassMax: 30,         // 单页最多几块面板
+  glassMax: 30,         // 单页最多几块模糊面板（内层另算）
+  glassDepth: 2,        // 玻璃最多嵌套几层（1 = 不嵌套）
   ambience: true,       // 背景氛围层（玻璃需要背后有东西才看得出来）
 
   siteModes: {},        // host -> 'auto'|'dynamic'|'invert'|'native'|'off'
