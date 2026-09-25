@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "液态玻璃深色",
   "short_name": "液态深色",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "把所有网站变成深色 + 苹果液态玻璃质感。优先用站点自带深色，没有才动态改色，顽固站点可切滤镜反色。",
   "browser_specific_settings": {
     "gecko": {

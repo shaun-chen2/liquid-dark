@@ -245,6 +245,7 @@ var LGGlass = (function () {
       var radius = parseFloat(cs.borderTopLeftRadius) || 0;
       var bw = parseFloat(cs.borderTopWidth) || 0;
       if (hasBg && area >= 6000 && (hasShadow || radius >= 4 || bw > 0)) return 'in';
+      if (hasBg && area >= 20000 && bgDiffersFromParent(el, cs.backgroundColor)) return 'in';
       return false;
     }
 
@@ -259,7 +260,31 @@ var LGGlass = (function () {
     // 卡片 / 弹窗：有底色 + 有投影就够了。
     if (hasShadow && hasBg && area >= 9000) return true;
 
+    /* 没投影、没圆角、没边框的卡片（洛谷首页的 .lg-article 就是）：
+     * 只要底色和所在容器不一样，本身就是一块独立面板。
+     * 不认这种的话，外层大卡片落选、里面的小卡片反被当成顶层玻璃 —— 里外颠倒。 */
+    if (hasBg && area >= 20000 && !isPageColumn(rect) && bgDiffersFromParent(el, cs.backgroundColor)) return true;
+
     return false;
+  }
+
+  /* 页面主栏：几乎和整页一样高的是底板，不是卡片（洛谷的 .main-container 就是灰底主栏） */
+  function isPageColumn(rect) {
+    var docH = Math.max(document.documentElement.scrollHeight, document.body ? document.body.scrollHeight : 0);
+    return docH > 0 && rect.height >= docH * 0.7;
+  }
+
+  /* 往上找第一个有不透明底色的祖先，比较底色是否不同 */
+  function bgDiffersFromParent(el, bg) {
+    var p = el.parentElement;
+    while (p && p !== document.documentElement) {
+      var c;
+      try { c = getComputedStyle(p).backgroundColor; } catch (e) { return false; }
+      var pc = lgParseColor(c);
+      if (pc && pc.a > 0.05) return c !== bg;
+      p = p.parentElement;
+    }
+    return true;
   }
 
   /* 氛围背景的死敌：整页包装层。
