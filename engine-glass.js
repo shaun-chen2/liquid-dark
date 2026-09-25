@@ -334,7 +334,21 @@ var LGGlass = (function () {
     }
   }
 
-  function scan() { scanIn(document); }
+  /* 外层可能比内层晚成为玻璃（SPA 后渲染、样式晚到）。
+   * 这时里面早先被标成顶层（带真模糊）的卡片要降级成内层，否则玻璃套玻璃、里外颠倒。 */
+  function demoteNested() {
+    var tops = document.querySelectorAll('[data-lgg=""]');
+    for (var i = 0; i < tops.length; i++) {
+      var el = tops[i];
+      var host = el.parentElement && el.parentElement.closest ? el.parentElement.closest('[data-lgg]') : null;
+      if (!host || host.getAttribute('data-lgg') === 'pop') continue;
+      if (appliedIn >= IN_MAX) break;
+      el.setAttribute('data-lgg', 'in');
+      applied--; appliedIn++;
+    }
+  }
+
+  function scan() { scanIn(document); demoteNested(); }
 
   /* ---------------- 浮窗预处理 ---------------- */
 
@@ -443,6 +457,7 @@ var LGGlass = (function () {
       }
       scanIn(n);
     }
+    demoteNested();
     collectPopCandidates();
     checkPopCandidates();
   }
@@ -475,6 +490,17 @@ var LGGlass = (function () {
       collectPopCandidates(true);
       checkPopCandidates();
       bindPopHooks();
+
+      /* SPA 页面（洛谷首页就是）内容是后渲染的，第一遍扫描时外层卡片的样式/布局还没到位，
+       * 被判"不是面板"后记进 evaluated 就再也不看了。补扫几次，每次清空判定缓存。 */
+      [900, 2500, 5000].forEach(function (ms) {
+        setTimeout(function () {
+          if (!running) return;
+          evaluated = new WeakSet();
+          scan();
+          markBackdrops();
+        }, ms);
+      });
     },
 
     restyle: function (o) {
