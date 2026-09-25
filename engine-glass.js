@@ -174,14 +174,21 @@ var LGGlass = (function () {
     tag = tag.toUpperCase();
     if (SKIP[tag]) return false;
     if (el.hasAttribute('data-lgg')) return false;
+    if (lgElemIs(el, 'glassBlock')) return false;      // 元素黑名单：不变玻璃
 
     var rect;
     try { rect = el.getBoundingClientRect(); } catch (e) { return false; }
-    if (rect.width < 90 || rect.height < 26) return false;
+    if (!lgElemIs(el, 'glassForce') && (rect.width < 90 || rect.height < 26)) return false;
 
     var cs;
     try { cs = getComputedStyle(el); } catch (e) { return false; }
     if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+
+    // 元素白名单：强制变玻璃，跳过所有判据（套在别的玻璃里就做内层）
+    if (lgElemIs(el, 'glassForce')) {
+      var fh = el.parentElement && el.parentElement.closest ? el.parentElement.closest('[data-lgg]') : null;
+      return fh && fh.getAttribute('data-lgg') !== 'pop' ? 'in' : true;
+    }
 
     var bg = lgParseColor(cs.backgroundColor);
     var hasBg = bg && bg.a > 0.05;

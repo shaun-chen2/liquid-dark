@@ -46,7 +46,14 @@ var LG_DEFAULTS = {
   devMode: false,
   allowOnly: false,     // 白名单模式：只在 allowlist 里的站点生效
   allowlist: [],
-  hideRules: []         // 删除元素：'host##选择器' 只对该站生效，'##选择器' 全站生效
+  hideRules: [],        // 删除元素（选择器写法）：'host##选择器'，域名留空为全站
+  hideHtml: [],         // 删除元素（HTML 写法）：粘贴元素的 HTML，页面上找到长得一样的就不显示
+
+  // 元素级名单，每行一个选择器，可写 'host##选择器' 限定站点
+  glassBlock: [],       // 这些元素不变玻璃
+  glassForce: [],       // 这些元素强制变玻璃
+  darkBlock: [],        // 这些元素不改色（保留原色）
+  darkForce: []         // 这些元素强制反色（常用于深色线条图标、图片）
 };
 
 var LG_MSG = {
@@ -111,4 +118,58 @@ function lgModeFor(settings, host) {
   if (lgBlocked(settings, host)) return 'off';
   var m = settings.siteModes && settings.siteModes[host];
   return m || settings.mode || 'auto';
+}
+
+/* 把 'host##选择器' / '选择器' 列表编译成当前站点可用的一个选择器串。
+ * 每条单独校验，一条写错不会连累整串失效。 */
+function lgCompileSelectors(list, host) {
+  var ok = [];
+  (list || []).forEach(function (line) {
+    var r = String(line || '').trim();
+    if (!r) return;
+    var k = r.indexOf('##'), sel = r;
+    if (k >= 0) {
+      var h = r.slice(0, k).trim();
+      sel = r.slice(k + 2).trim();
+      if (h && !lgHostIn([h], host)) return;
+    }
+    if (!sel) return;
+    try { document.querySelector(sel); ok.push(sel); } catch (e) { /* 非法选择器，跳过 */ }
+  });
+  return ok.join(',');
+}
+
+/* 当前页面生效的元素名单，由 content.js 在启动引擎前填好，两个引擎直接读 */
+var LG_ELEM = { glassBlock: '', glassForce: '', darkBlock: '', darkForce: '' };
+
+function lgElemIs(el, key) {
+  var sel = LG_ELEM[key];
+  if (!sel || !el || !el.matches) return false;
+  try { return el.matches(sel); } catch (e) { return false; }
+}
+
+/* 把一段 HTML 转成"匹配规则"：取第一个元素的标签、id、class、其它属性，
+ * 以及（没有子元素时）它的文字。页面上标签相同、这些属性都一样、文字也一样的元素就算命中。
+ * 这样站点给元素多加个 class、换个 style 之类不会漏；子元素内容变了也不影响。 */
+function lgHtmlPattern(html) {
+  var t = document.createElement('template');
+  t.innerHTML = String(html || '').trim();
+  var e = t.content.firstElementChild;
+  if (!e) return null;
+  var sel = e.tagName.toLowerCase();
+  var esc = (window.CSS && CSS.escape) ? CSS.escape : function (x) { return String(x).replace(/["\\]/g, '\\$&'); };
+  for (var i = 0; i < e.attributes.length; i++) {
+    var a = e.attributes[i];
+    if (a.name === 'style' || a.name.indexOf('data-lg') === 0) continue;
+    if (a.name === 'class') {
+      a.value.split(/\s+/).forEach(function (c) { if (c && c.indexOf('lg') !== 0) sel += '.' + esc(c); });
+    } else if (a.name === 'id') {
+      sel += '#' + esc(a.value);
+    } else {
+      sel += '[' + a.name + '="' + String(a.value).replace(/["\\]/g, '\\$&') + '"]';
+    }
+  }
+  try { document.querySelector(sel); } catch (x) { return null; }
+  var text = e.children.length === 0 ? (e.textContent || '').trim() : '';
+  return { sel: sel, text: text };
 }

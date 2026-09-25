@@ -146,10 +146,31 @@
   </section>
 
   <section>
+    <h2>元素名单 · 液态玻璃</h2>
+    <p class="note" style="margin-top:0">每行一个 CSS 选择器；只想对某个站点生效就写成 <code>域名##选择器</code>。改完刷新网页生效。</p>
+    <div class="num" style="border-top:0"><span>不变玻璃（黑名单）</span></div>
+    <textarea id="glassBlock" placeholder="例如：&#10;.sidebar&#10;luogu.com.cn##.lg-index-stat"></textarea>
+    <div class="num"><span>强制变玻璃（白名单）</span></div>
+    <textarea id="glassForce" placeholder="例如：&#10;.my-card&#10;github.com##.Box"></textarea>
+  </section>
+
+  <section>
+    <h2>元素名单 · 深色</h2>
+    <div class="num" style="border-top:0"><span>不改色，保留原色（黑名单）</span></div>
+    <textarea id="darkBlock" placeholder="例如：&#10;.code-block&#10;.brand-logo"></textarea>
+    <div class="num"><span>强制反色（白名单，适合深色线条图标、图片）</span></div>
+    <textarea id="darkForce" placeholder="例如：&#10;img.icon&#10;luogu.com.cn##.logo img"></textarea>
+  </section>
+
+  <section>
     <h2>删除元素</h2>
-    <textarea id="hideRules" placeholder="每行一条：&#10;luogu.com.cn##.ad-banner      只在这个站点删&#10;##.cookie-notice              所有站点都删"></textarea>
-    <p class="note">格式是 <code>域名##CSS选择器</code>，域名留空表示全站。被删的元素直接 <code>display:none</code>，关掉深色也照样生效。<br>
-    懒得写选择器的话：工具栏面板里有「🎯 点选删除元素」，在页面上点一下就自动加一条。</p>
+    <p class="note" style="margin-top:0">把要删的元素的 HTML 粘进来（浏览器里右键元素 →「检查」→ 右键 →「复制外部 HTML」）。
+    多个元素之间<b>空一行</b>。页面上标签、id、class、其它属性都一样的元素会被隐藏；
+    只有文字没有子元素的，文字也要一样。子元素内容不管，所以只粘开头那一层也行。</p>
+    <textarea id="hideHtml" style="min-height:140px" placeholder='<div class="ad-banner" id="top-ad">&#10;&#10;<a class="btn" href="/vip">开通会员</a>'></textarea>
+    <p class="note">懒得复制的话：工具栏面板里点「🎯 点选删除元素」，在页面上点一下就自动加一条。</p>
+    <div class="num"><span>按选择器删除（进阶，每行 <code>域名##选择器</code>）</span></div>
+    <textarea id="hideRules" placeholder="luogu.com.cn##.ad-banner&#10;##.cookie-notice"></textarea>
   </section>
   </div>
 

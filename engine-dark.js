@@ -49,7 +49,7 @@ var LGDark = (function () {
   function baseCss() {
     return [
       ':root{color-scheme:dark !important}',
-      'html canvas[data-lgcv]{filter:invert(1) hue-rotate(180deg) !important}',
+      'html canvas[data-lgcv],html [data-lgforce]{filter:invert(1) hue-rotate(180deg) !important}',
       'html{background-color:#141418 !important}',
       '::selection{background:rgba(122,150,255,.34) !important}'
     ].join('');
@@ -175,6 +175,7 @@ var LGDark = (function () {
 
     seen.add(el);
     if (++count > MAX_ELEMENTS) { truncated = true; return; }
+    if (lgElemIs(el, 'darkBlock')) return;               // 元素黑名单：保留原色
 
     var cs;
     try { cs = getComputedStyle(el); } catch (e) { return; }

@@ -79,6 +79,67 @@
 
   /* ---------------- 应用 ---------------- */
 
+  /* ---------------- 元素级名单 & HTML 删除 ---------------- */
+
+  function compileElemLists() {
+    ['glassBlock', 'glassForce', 'darkBlock', 'darkForce'].forEach(function (k) {
+      LG_ELEM[k] = lgCompileSelectors(settings[k], HOST);
+    });
+  }
+
+  var htmlPats = [];
+  function compileHtmlPats() {
+    htmlPats = (settings.hideHtml || []).map(lgHtmlPattern).filter(Boolean);
+  }
+
+  /* 按名单给元素打标记：强制反色（data-lgforce）、HTML 删除（data-lghide） */
+  function markElems() {
+    var olds = document.querySelectorAll('[data-lgforce],[data-lghide]');
+    for (var i = 0; i < olds.length; i++) { olds[i].removeAttribute('data-lgforce'); olds[i].removeAttribute('data-lghide'); }
+    if (LG_ELEM.darkForce && effMode !== 'off') {
+      try {
+        var f = document.querySelectorAll(LG_ELEM.darkForce);
+        for (var j = 0; j < f.length; j++) f[j].setAttribute('data-lgforce', '');
+      } catch (e) {}
+    }
+    htmlPats.forEach(function (p) {
+      var hits;
+      try { hits = document.querySelectorAll(p.sel); } catch (e) { return; }
+      for (var k = 0; k < hits.length; k++) {
+        if (p.text && (hits[k].textContent || '').trim() !== p.text) continue;
+        hits[k].setAttribute('data-lghide', '');
+      }
+    });
+  }
+
+  var markTimer = 0, markMo = null;
+  function watchElems() {
+    if (markMo) return;
+    ensureHideStyle();
+    markMo = new MutationObserver(function () {
+      if (markTimer) return;
+      markTimer = setTimeout(function () { markTimer = 0; markElems(); }, 250);
+    });
+    try { markMo.observe(document.documentElement, { childList: true, subtree: true }); } catch (e) {}
+  }
+
+  var hideBaseEl = null;
+  function ensureHideStyle() {
+    if (hideBaseEl && hideBaseEl.isConnected) return;
+    hideBaseEl = document.createElement('style');
+    hideBaseEl.setAttribute('data-liquid-hidehtml', '');
+    hideBaseEl.textContent = 'html [data-lghide]{display:none !important}';
+    (document.head || document.documentElement).appendChild(hideBaseEl);
+  }
+
+  function refreshElems() {
+    compileElemLists();
+    compileHtmlPats();
+    ensureHideStyle();
+    markElems();
+    watchElems();
+  }
+
   function startEngines() {
     if (started) return;
     started = true;
@@ -102,9 +163,11 @@
       LGGlass.start(go);
     }
 
+    markElems();
     reveal();
 
     window.addEventListener('load', function () {
+      markElems();
       /* 异步加载的样式表这时候才到齐，补搬一次。
        * 只在已经判定为 native 时补 —— 要是已经走了动态改色，
        * 这时再灌一套站点深色规则会和我们改的颜色打架。 */
@@ -280,10 +343,17 @@
     function click(e) {
       e.preventDefault(); e.stopPropagation();
       var sel = cur ? selectorFor(cur) : '';
+      var pickedEl = cur;
       done();
-      if (!sel) return;
+      if (!sel || !pickedEl) return;
+      // 存成 HTML：只留元素自己的开始标签（没有子元素时带上文字），子内容变了也照样认得出
+      var clone = pickedEl.cloneNode(pickedEl.children.length === 0);
+      Array.prototype.slice.call(clone.attributes).forEach(function (a) {
+        if (a.name.indexOf('data-lg') === 0) clone.removeAttribute(a.name);
+      });
+      var html = clone.outerHTML;
       lgGetSettings().then(function (s) {
-        s.hideRules = (s.hideRules || []).concat(HOST + '##' + sel);
+        s.hideHtml = (s.hideHtml || []).concat(html);
         return lgSaveSettings(s);
       });
     }
@@ -296,7 +366,10 @@
   try {
     browser.storage.onChanged.addListener(function (changes, area) {
       if (area !== 'local' || !changes.settings) return;
-      onSettings(Object.assign({}, LG_DEFAULTS, changes.settings.newValue || {}));
+      var next = Object.assign({}, LG_DEFAULTS, changes.settings.newValue || {});
+      settings = next;
+      refreshElems();         // 名单要在引擎重算之前更新
+      onSettings(next);
       applyHide();
     });
   } catch (e) {}
@@ -317,6 +390,9 @@
     settings = s;
     if (!settings.holdRender) reveal();
     applyHide();          // 删除元素不受模式影响，关掉深色也照样删
+    compileElemLists();
+    compileHtmlPats();
+    whenBody(function () { ensureHideStyle(); markElems(); watchElems(); });
     decideAndStart();
   });
 })();

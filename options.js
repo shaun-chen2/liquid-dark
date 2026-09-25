@@ -22,6 +22,10 @@ function fill(s) {
   $('blocklist').value = (s.blocklist || []).join('\n');
   $('allowlist').value = (s.allowlist || []).join('\n');
   $('hideRules').value = (s.hideRules || []).join('\n');
+  ['glassBlock', 'glassForce', 'darkBlock', 'darkForce'].forEach(function (k) {
+    $(k).value = (s[k] || []).join('\n');
+  });
+  $('hideHtml').value = (s.hideHtml || []).join('\n\n');
   $('devMode').checked = !!s.devMode;
   $('devArea').style.display = s.devMode ? '' : 'none';
   renderSites(s);
@@ -42,6 +46,9 @@ function read() {
   s.blocklist = lines('blocklist');
   s.allowlist = lines('allowlist');
   s.hideRules = lines('hideRules');
+  ['glassBlock', 'glassForce', 'darkBlock', 'darkForce'].forEach(function (k) { s[k] = lines(k); });
+  // HTML 以空行分隔，一段可以跨多行
+  s.hideHtml = $('hideHtml').value.split(/\n\s*\n/).map(function (x) { return x.trim(); }).filter(Boolean);
   s.devMode = $('devMode').checked;
   return s;
 }
