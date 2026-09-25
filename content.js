@@ -11,7 +11,14 @@
  * auto 模式会探测第 1 层生效了没有，没有才上第 2 层。 */
 
 (function () {
-  if (!/^https?:$/.test(location.protocol)) return;
+  /* 放行渲染（见 preload.css 的拦截）。等下一帧，让刚写进去的改色样式先生效再显示。 */
+  function reveal() {
+    var go = function () { document.documentElement.setAttribute('data-lgready', ''); };
+    try { requestAnimationFrame(go); } catch (e) { go(); }
+    setTimeout(go, 50);   // 后台标签页 rAF 不触发，补一刀
+  }
+
+  if (!/^https?:$/.test(location.protocol)) { reveal(); return; }
 
   var IS_TOP = (function () {
     try { return window.top === window; } catch (e) { return false; }
@@ -95,6 +102,8 @@
       LGGlass.start(go);
     }
 
+    reveal();
+
     window.addEventListener('load', function () {
       /* 异步加载的样式表这时候才到齐，补搬一次。
        * 只在已经判定为 native 时补 —— 要是已经走了动态改色，
@@ -113,6 +122,7 @@
 
     if (m === 'off') {
       retirePreload();
+      reveal();
       effMode = 'off';
       report();
       return;
@@ -210,15 +220,90 @@
     report();
   }
 
+  /* ---------------- 开发者模式：删除元素 ---------------- */
+
+  var hideEl = null;
+  function applyHide() {
+    var sels = lgHideSelectorsFor(settings, HOST);
+    if (!sels.length) { if (hideEl) { hideEl.remove(); hideEl = null; } return; }
+    if (!hideEl || !hideEl.isConnected) {
+      hideEl = document.createElement('style');
+      hideEl.setAttribute('data-liquid-hide', '');
+      (document.head || document.documentElement).appendChild(hideEl);
+    }
+    // 逐条包一层，一条选择器写错不会连累其它规则
+    hideEl.textContent = sels.map(function (x) { return x + '{display:none !important}'; }).join('\n');
+  }
+
+  /* 为元素生成一个尽量稳的选择器：有 id 用 id，否则 标签.类名 往上最多 4 层 */
+  function selectorFor(el) {
+    var parts = [];
+    for (var n = el, d = 0; n && n.nodeType === 1 && n !== document.body && d < 4; n = n.parentElement, d++) {
+      if (n.id && /^[A-Za-z][\w-]*$/.test(n.id)) { parts.unshift('#' + n.id); break; }
+      var cls = Array.prototype.filter.call(n.classList, function (c) {
+        return /^[A-Za-z_-][\w-]*$/.test(c) && c.indexOf('lg') !== 0;
+      }).slice(0, 3);
+      parts.unshift(n.tagName.toLowerCase() + (cls.length ? '.' + cls.join('.') : ''));
+    }
+    return parts.join(' > ');
+  }
+
+  var picking = false;
+  function startPicker() {
+    if (picking || !IS_TOP) return;
+    picking = true;
+    var box = document.createElement('div');
+    box.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none;' +
+      'border:2px solid #ff4d6d;background:rgba(255,77,109,.15);border-radius:4px;transition:all .05s';
+    var tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;z-index:2147483647;left:12px;bottom:12px;padding:6px 10px;' +
+      'font:12px/1.4 system-ui;color:#fff;background:#23232b;border-radius:6px;pointer-events:none';
+    tip.textContent = '点选要删除的元素，Esc 取消';
+    document.documentElement.appendChild(box);
+    document.documentElement.appendChild(tip);
+    var cur = null;
+
+    function over(e) {
+      cur = e.target;
+      var r = cur.getBoundingClientRect();
+      box.style.left = r.left + 'px'; box.style.top = r.top + 'px';
+      box.style.width = r.width + 'px'; box.style.height = r.height + 'px';
+      tip.textContent = selectorFor(cur) + '　（点击删除，Esc 取消）';
+    }
+    function done() {
+      picking = false;
+      document.removeEventListener('mouseover', over, true);
+      document.removeEventListener('click', click, true);
+      document.removeEventListener('keydown', key, true);
+      box.remove(); tip.remove();
+    }
+    function click(e) {
+      e.preventDefault(); e.stopPropagation();
+      var sel = cur ? selectorFor(cur) : '';
+      done();
+      if (!sel) return;
+      lgGetSettings().then(function (s) {
+        s.hideRules = (s.hideRules || []).concat(HOST + '##' + sel);
+        return lgSaveSettings(s);
+      });
+    }
+    function key(e) { if (e.key === 'Escape') { e.preventDefault(); done(); } }
+    document.addEventListener('mouseover', over, true);
+    document.addEventListener('click', click, true);
+    document.addEventListener('keydown', key, true);
+  }
+
   try {
     browser.storage.onChanged.addListener(function (changes, area) {
       if (area !== 'local' || !changes.settings) return;
       onSettings(Object.assign({}, LG_DEFAULTS, changes.settings.newValue || {}));
+      applyHide();
     });
   } catch (e) {}
 
   try {
     browser.runtime.onMessage.addListener(function (msg) {
+      if (msg && msg.type === LG_MSG.PICK && IS_TOP) { startPicker(); return; }
       if (msg && msg.type === LG_MSG.STATE && IS_TOP) {
         return Promise.resolve({
           host: HOST, mode: effMode, nativeDark: nativeDark,
@@ -230,6 +315,8 @@
 
   lgGetSettings().then(function (s) {
     settings = s;
+    if (!settings.holdRender) reveal();
+    applyHide();          // 删除元素不受模式影响，关掉深色也照样删
     decideAndStart();
   });
 })();

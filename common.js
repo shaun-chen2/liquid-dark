@@ -22,6 +22,9 @@ var LG_DEFAULTS = {
   // 采样判断它整体是不是又亮又平，是的话才反色，照片和深色图表不动。
   darkenCanvas: true,
 
+  // 引擎处理完之前先不显示正文，避免闪白（最多拦 1.5 秒）
+  holdRender: true,
+
   darkness: 100,        // 改色强度 0-100
   contrast: 100,        // 对比度微调 50-150
 
@@ -37,13 +40,20 @@ var LG_DEFAULTS = {
   ambience: true,       // 背景氛围层（玻璃需要背后有东西才看得出来）
 
   siteModes: {},        // host -> 'auto'|'dynamic'|'invert'|'native'|'off'
-  blocklist: []         // 完全不干预，每行一个，支持 *.example.com
+  blocklist: [],        // 黑名单：完全不干预，每行一个，支持 *.example.com
+
+  // ---- 开发者模式（设置页右下角的小开关打开后才显示这些） ----
+  devMode: false,
+  allowOnly: false,     // 白名单模式：只在 allowlist 里的站点生效
+  allowlist: [],
+  hideRules: []         // 删除元素：'host##选择器' 只对该站生效，'##选择器' 全站生效
 };
 
 var LG_MSG = {
   STATE: 'lg:state',
   SETTINGS: 'lg:settings',
   APPLY: 'lg:apply',
+  PICK: 'lg:pick',
   REPORT: 'lg:report'
 };
 
@@ -59,21 +69,40 @@ function lgSaveSettings(s) {
   return browser.storage.local.set({ settings: s });
 }
 
-/* host 是否命中黑名单。支持 example.com（含子域）与 *.example.com。 */
-function lgBlocked(settings, host) {
-  if (!host || !settings || !Array.isArray(settings.blocklist)) return false;
+/* host 是否命中名单。支持 example.com（含子域）与 *.example.com。 */
+function lgHostIn(list, host) {
+  if (!host || !Array.isArray(list)) return false;
   host = host.toLowerCase();
-  for (var i = 0; i < settings.blocklist.length; i++) {
-    var rule = String(settings.blocklist[i] || '').trim().toLowerCase();
+  for (var i = 0; i < list.length; i++) {
+    var rule = String(list[i] || '').trim().toLowerCase();
     if (!rule) continue;
-    if (rule.slice(0, 2) === '*.') {
-      var base = rule.slice(2);
-      if (host === base || host.endsWith('.' + base)) return true;
-    } else if (host === rule || host.endsWith('.' + rule)) {
-      return true;
-    }
+    if (rule.slice(0, 2) === '*.') rule = rule.slice(2);
+    if (host === rule || host.endsWith('.' + rule)) return true;
   }
   return false;
+}
+
+function lgBlocked(settings, host) {
+  if (!settings) return false;
+  if (lgHostIn(settings.blocklist, host)) return true;
+  // 白名单模式：名单外的站点一律当作被排除
+  if (settings.allowOnly && !lgHostIn(settings.allowlist, host)) return true;
+  return false;
+}
+
+/* 该站点要隐藏的元素选择器 */
+function lgHideSelectorsFor(settings, host) {
+  var out = [];
+  var rules = (settings && settings.hideRules) || [];
+  for (var i = 0; i < rules.length; i++) {
+    var r = String(rules[i] || '').trim();
+    var k = r.indexOf('##');
+    if (k < 0) continue;
+    var h = r.slice(0, k).trim(), sel = r.slice(k + 2).trim();
+    if (!sel) continue;
+    if (!h || lgHostIn([h], host)) out.push(sel);
+  }
+  return out;
 }
 
 /* 该站点最终生效的模式 */

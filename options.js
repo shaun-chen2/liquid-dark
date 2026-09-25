@@ -2,7 +2,7 @@
 
 var $ = function (id) { return document.getElementById(id); };
 
-var BOOLS = ['enabled', 'nativeOverride', 'respectNativeDark', 'darkenCanvas', 'roundCorners', 'glass', 'ambience'];
+var BOOLS = ['enabled', 'nativeOverride', 'respectNativeDark', 'holdRender', 'allowOnly', 'darkenCanvas', 'roundCorners', 'glass', 'ambience'];
 var NUMS = ['darkness', 'contrast', 'radius', 'glassBlur', 'glassOpacity', 'glassMax'];
 var UNITS = { darkness: '%', contrast: '%', radius: ' px', glassBlur: ' px', glassOpacity: '%', glassMax: ' 块' };
 
@@ -20,6 +20,10 @@ function fill(s) {
   var r = document.querySelector('input[name=mode][value="' + (s.mode || 'auto') + '"]');
   if (r) r.checked = true;
   $('blocklist').value = (s.blocklist || []).join('\n');
+  $('allowlist').value = (s.allowlist || []).join('\n');
+  $('hideRules').value = (s.hideRules || []).join('\n');
+  $('devMode').checked = !!s.devMode;
+  $('devArea').style.display = s.devMode ? '' : 'none';
   renderSites(s);
 }
 
@@ -32,8 +36,13 @@ function read() {
   });
   var r = document.querySelector('input[name=mode]:checked');
   s.mode = r ? r.value : 'auto';
-  s.blocklist = $('blocklist').value.split('\n')
-    .map(function (x) { return x.trim(); }).filter(Boolean);
+  var lines = function (id) {
+    return $(id).value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean);
+  };
+  s.blocklist = lines('blocklist');
+  s.allowlist = lines('allowlist');
+  s.hideRules = lines('hideRules');
+  s.devMode = $('devMode').checked;
   return s;
 }
 
@@ -99,3 +108,10 @@ lgGetSettings().then(function (s) {
     el.textContent = res.nativeOn ? ' 当前：已生效。' : ' 当前：未生效。';
   }
 }).catch(function () {});
+
+/* 右下角的开发者开关：切换立即生效并保存，不用再点"保存" */
+$('devMode').addEventListener('change', function () {
+  $('devArea').style.display = this.checked ? '' : 'none';
+  settings = read();
+  lgSaveSettings(settings).then(flash);
+});

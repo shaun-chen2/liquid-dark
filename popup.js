@@ -144,3 +144,17 @@ $('openOptions').addEventListener('click', function (e) {
   browser.runtime.openOptionsPage();
   window.close();
 });
+
+/* 开发者模式：点选删除元素 */
+lgGetSettings().then(function (s) {
+  if (!s.devMode) return;
+  var b = document.getElementById('pick');
+  b.style.display = '';
+  b.addEventListener('click', function () {
+    browser.tabs.query({ active: true, currentWindow: true }).then(function (tabs) {
+      if (!tabs[0]) return;
+      browser.tabs.sendMessage(tabs[0].id, { type: LG_MSG.PICK }).catch(function () {});
+      window.close();
+    });
+  });
+});

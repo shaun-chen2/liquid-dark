@@ -91,20 +91,22 @@ var LGDark = (function () {
     if (st) roots.push({ root: root, style: st });
   }
 
+  function syncNow() {
+    if (syncTimer) { clearTimeout(syncTimer); syncTimer = 0; }
+    var css = cssText();
+    for (var i = 0; i < roots.length; i++) {
+      // 样式节点可能被站点 JS 清掉，掉了就补回去
+      if (!roots[i].style.isConnected) {
+        var st = makeStyle(roots[i].root);
+        if (st) roots[i].style = st; else continue;
+      }
+      if (roots[i].style.textContent !== css) roots[i].style.textContent = css;
+    }
+  }
+
   function syncSoon() {
     if (syncTimer) return;
-    syncTimer = setTimeout(function () {
-      syncTimer = 0;
-      var css = cssText();
-      for (var i = 0; i < roots.length; i++) {
-        // 样式节点可能被站点 JS 清掉，掉了就补回去
-        if (!roots[i].style.isConnected) {
-          var st = makeStyle(roots[i].root);
-          if (st) roots[i].style = st; else continue;
-        }
-        if (roots[i].style.textContent !== css) roots[i].style.textContent = css;
-      }
-    }, 40);
+    syncTimer = setTimeout(function () { syncTimer = 0; syncNow(); }, 40);
   }
 
   /* ---------------- 颜色分桶 ---------------- */
@@ -469,12 +471,13 @@ var LGDark = (function () {
       mode = m;
       opts = o;
       addRoot(document);
-      if (mode === 'invert') { syncSoon(); return; }
+      if (mode === 'invert') { syncNow(); return; }
       if (document.body) walk(document);
       observe();
       harvestStates();
       scanCanvases();
-      syncSoon();
+      // 同步写入：调用方紧接着就要放行渲染（见 preload.css），样式必须先到位
+      syncNow();
     },
 
     /* 设置变了：只按新参数重算样式表文本。

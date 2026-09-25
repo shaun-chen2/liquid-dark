@@ -14,3 +14,13 @@ html:not([data-lgnobg]) {
 html:not([data-lgnofg]) body {
   color: #e7e7ec !important;
 }
+
+/* 拦截渲染：引擎第一轮改色完成前先不画正文，避免先闪一下原来的浅色页面。
+ * 内容脚本处理完会给 html 打上 data-lgready 放行。
+ * 兜底：纯 CSS 动画 1.5 秒后强制显示 —— 就算脚本报错或根本没跑（某些框架），也绝不会一直空白。
+ * 动画能覆盖普通声明，所以这里 visibility 不能加 !important。 */
+html:not([data-lgready]) body {
+  visibility: hidden;
+  animation: lg-reveal 0s linear 1.5s forwards;
+}
+@keyframes lg-reveal { to { visibility: visible; } }

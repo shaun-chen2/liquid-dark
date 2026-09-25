@@ -70,6 +70,10 @@
     td { padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,.07); }
     td:last-child { text-align: right; }
     .warn { color: #ffb4b4; }
+    .devsw{position:absolute;right:14px;bottom:10px;display:flex;align-items:center;gap:4px;
+      font-size:10.5px;color:var(--dim, #888);opacity:.55;cursor:pointer;user-select:none}
+    .devsw:hover{opacity:1}
+    .devsw input{margin:0;width:11px;height:11px}
   </style>
 </head>
 <body>
@@ -101,6 +105,8 @@
   <section>
     <h2>改色</h2>
     <div class="num"><span>深色强度</span><input type="range" id="darkness" min="0" max="100" step="5"><span class="v" id="v_darkness"></span></div>
+    <label class="item"><input type="checkbox" id="holdRender">
+      <span class="txt"><b>处理完再显示页面（防闪白）</b><small>引擎第一轮改色完成前先不画正文，只显示深色底，避免先闪一下原来的浅色页面。最多拦 1.5 秒，超时自动显示。</small></span></label>
     <label class="item"><input type="checkbox" id="darkenCanvas">
       <span class="txt"><b>处理 canvas 上的浅色内容</b><small>canvas 的像素是画出来的，CSS 改不了颜色——代码编辑器的小地图、部分图表就画在上面，会在深色页面上留一大块白。开启后会采样判断它整体是不是又亮又平，是才反色；照片和本来就深的图表不动。</small></span></label>
     <div class="num"><span>对比度</span><input type="range" id="contrast" min="60" max="140" step="5"><span class="v" id="v_contrast"></span></div>
@@ -125,11 +131,27 @@
     <p class="note">backdrop-filter 很吃 GPU，块数上限是性能闸门。页面卡就把它调小。</p>
   </section>
 
+  <div id="devArea" style="display:none">
   <section>
-    <h2>完全不干预的域名</h2>
+    <h2>黑名单 · 完全不干预的域名</h2>
     <textarea id="blocklist" placeholder="每行一个，例如：&#10;bank.example.com&#10;*.internal.corp"></textarea>
-    <p class="note">写 example.com 会连子域一起匹配；写 *.example.com 只匹配它和它的子域。</p>
+    <p class="note">写 example.com 会连子域一起匹配。</p>
   </section>
+
+  <section>
+    <h2>白名单</h2>
+    <label class="item"><input type="checkbox" id="allowOnly">
+      <span class="txt"><b>白名单模式</b><small>打开后只在下面这些站点生效，其余站点一律不干预。黑名单优先于白名单。</small></span></label>
+    <textarea id="allowlist" placeholder="每行一个，例如：&#10;luogu.com.cn&#10;github.com"></textarea>
+  </section>
+
+  <section>
+    <h2>删除元素</h2>
+    <textarea id="hideRules" placeholder="每行一条：&#10;luogu.com.cn##.ad-banner      只在这个站点删&#10;##.cookie-notice              所有站点都删"></textarea>
+    <p class="note">格式是 <code>域名##CSS选择器</code>，域名留空表示全站。被删的元素直接 <code>display:none</code>，关掉深色也照样生效。<br>
+    懒得写选择器的话：工具栏面板里有「🎯 点选删除元素」，在页面上点一下就自动加一条。</p>
+  </section>
+  </div>
 
   <section>
     <h2>已单独设置模式的站点</h2>
@@ -142,6 +164,7 @@
   <button class="primary" id="save">保存</button>
   <button id="reset">恢复默认</button>
   <span id="saved">已保存</span>
+  <label class="devsw" title="开发者模式"><input type="checkbox" id="devMode"><span>开发者</span></label>
 </div>
 
 <script src="platform.js"></script>
