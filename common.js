@@ -152,9 +152,9 @@ function lgElemIs(el, key) {
  * 以及（没有子元素时）它的文字。页面上标签相同、这些属性都一样、文字也一样的元素就算命中。
  * 这样站点给元素多加个 class、换个 style 之类不会漏；子元素内容变了也不影响。 */
 function lgHtmlPattern(html) {
-  var t = document.createElement('template');
-  t.innerHTML = String(html || '').trim();
-  var e = t.content.firstElementChild;
+  // DOMParser 解析出的文档是惰性的：不执行脚本、不加载图片，比 innerHTML 安全
+  var doc = new DOMParser().parseFromString(String(html || '').trim(), 'text/html');
+  var e = doc.body.firstElementChild || doc.head.firstElementChild;
   if (!e) return null;
   var sel = e.tagName.toLowerCase();
   var esc = (window.CSS && CSS.escape) ? CSS.escape : function (x) { return String(x).replace(/["\\]/g, '\\$&'); };
