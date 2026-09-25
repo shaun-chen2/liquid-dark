@@ -132,8 +132,20 @@
     (document.head || document.documentElement).appendChild(hideBaseEl);
   }
 
+  /* 名单更新时，已经处理过的元素也要按新名单撤回，不用刷新网页 */
+  function undoBlocked() {
+    var pairs = [['darkBlock', 'data-lgd'], ['glassBlock', 'data-lgg']];
+    pairs.forEach(function (pr) {
+      if (!LG_ELEM[pr[0]]) return;
+      var els;
+      try { els = document.querySelectorAll(LG_ELEM[pr[0]]); } catch (e) { return; }
+      for (var i = 0; i < els.length; i++) els[i].removeAttribute(pr[1]);
+    });
+  }
+
   function refreshElems() {
     compileElemLists();
+    undoBlocked();
     compileHtmlPats();
     ensureHideStyle();
     markElems();
