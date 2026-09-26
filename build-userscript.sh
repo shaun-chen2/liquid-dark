@@ -152,11 +152,16 @@ cat <<'MENU'
           save(function (x) { x[t[0]] = !x[t[0]]; });
         }));
       });
+      ids.push(GM_registerMenuCommand((s.devMode ? '✅ ' : '⬜ ') + '开发者模式', function () {
+        save(function (x) { x.devMode = !x.devMode; });
+      }));
+      if (!s.devMode) return;             // 以下是开发者功能，和扩展版一样，开了开发者模式才出现
+
       ids.push(GM_registerMenuCommand('🎯 点选删除元素', function () {
         __lgMsgListeners.forEach(function (fn) { try { fn({ type: LG_MSG.PICK }); } catch (e) {} });
       }));
       ids.push(GM_registerMenuCommand('⚙ 编辑全部设置（JSON）', function () {
-        var txt = prompt('全部设置（JSON）。黑白名单、元素名单、删除元素的 HTML 都在这里改：',
+        var txt = prompt('全部设置（JSON）。站点黑白名单 blocklist/allowlist/allowOnly、元素名单 glassBlock/glassForce/darkBlock/darkForce、删除元素 hideHtml/hideRules 都在这里改：',
           JSON.stringify(s));
         if (txt == null) return;
         try {
