@@ -2,7 +2,7 @@
 // @name         液态玻璃深色
 // @name:en      Liquid Glass Dark
 // @namespace    https://github.com/shaun-chen2/liquid-dark
-// @version      1.9.10
+// @version      1.9.11
 // @description  把所有网站变成深色 + 苹果液态玻璃质感。优先用站点自带深色，没有才动态改色。
 // @description:en  Turns every website dark with an Apple-style liquid-glass finish.
 // @author       陈帅帅
@@ -1187,6 +1187,12 @@ var LGGlass = (function () {
         'outline:1px solid rgba(', lift, ',.10) !important;outline-offset:-1px !important;',
         'box-shadow:inset 0 1px 0 rgba(', lift, ',.10),0 4px 16px rgba(0,0,0,.26) !important}'
       ].join(''));
+      /* 叠层不累加：每层内层玻璃都铺一层薄白 + 顶光，一层层叠上去会越来越白（四层就发灰发白）。
+       * 第二层底色减半、去掉顶光；第三层起不再铺底，只靠描边分层 —— 亮度有上限，再深也不会更白。 */
+      parts.push('html [data-lgg="in"] [data-lgg="in"]{' +
+        'background-color:rgba(' + lift + ',' + (ai / 2).toFixed(3) + ') !important;background-image:none !important}');
+      parts.push('html [data-lgg="in"] [data-lgg="in"] [data-lgg="in"]{' +
+        'background-color:transparent !important;box-shadow:none !important}');
       // 内层玻璃的细边会盖掉输入框、按钮的焦点提示，聚焦时换成明显的蓝边
       parts.push('html [data-lgg="in"]:focus,html [data-lgg="in"]:focus-visible{' +
         'outline:2px solid rgba(122,150,255,.75) !important;outline-offset:1px !important}');
