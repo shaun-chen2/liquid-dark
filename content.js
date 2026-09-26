@@ -31,6 +31,7 @@
   var started = false;
   var glassOn = false;
   var prefersOn = false;
+  var decideKey = '';        // 决定走哪条路的那几项设置，变了就整个重新判定
 
   function send(msg) {
     try {
@@ -172,7 +173,9 @@
     var go = surfaceOpts();
     if (IS_TOP && (go.glass || go.roundCorners)) {
       glassOn = true;
-      LGGlass.start(go);
+      var h = document.documentElement;
+      h.setAttribute('data-lgscan', '');     // 首轮扫描要看到真实的可见性，见 preload.css
+      try { LGGlass.start(go); } finally { h.removeAttribute('data-lgscan'); }
     }
 
     markElems();
@@ -192,8 +195,13 @@
     report();
   }
 
+  function modeKey() {
+    return [lgModeFor(settings, HOST), !!settings.respectNativeDark, !!settings.nativeOverride].join('|');
+  }
+
   function decideAndStart() {
     var m = lgModeFor(settings, HOST);
+    decideKey = modeKey();
 
     if (m === 'off') {
       retirePreload();
@@ -264,22 +272,17 @@
   /* ---------------- 设置热更新 ---------------- */
 
   function onSettings(next) {
-    var prevMode = effMode;
-    var prevGlass = glassOn;
     settings = next;
 
-    var m = lgModeFor(settings, HOST);
-    var want = m;
-    if (m === 'auto') want = (nativeDark && settings.respectNativeDark) ? 'native' : 'dynamic';
-
-    // 模式变了：整个推倒重来
-    if (want !== prevMode) {
+    /* 模式相关的设置变了：全部撤掉，再走一遍和页面加载时一样的判定。
+     *  - 站点深色规则（LGPrefers）也要撤，否则关掉之后页面还是深的，切到动态改色还会两套打架
+     *  - auto 要重新探测：页面一开始是"关闭"的话根本没探测过，nativeDark 是个没意义的初值 */
+    if (modeKey() !== decideKey) {
       LGDark.stop();
-      if (prevGlass) { LGGlass.stop(); glassOn = false; }
+      if (glassOn) { LGGlass.stop(); glassOn = false; }
+      if (prefersOn) { LGPrefers.stop(); prefersOn = false; }
       started = false;
-      effMode = want;
-      if (want === 'off') { retirePreload(); report(); return; }
-      whenBody(startEngines);
+      decideAndStart();
       return;
     }
 

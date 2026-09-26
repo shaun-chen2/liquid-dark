@@ -7,11 +7,16 @@ var NUMS = ['darkness', 'contrast', 'radius', 'glassBlur', 'glassOpacity', 'glas
 var UNITS = { darkness: '%', contrast: '%', radius: ' px', glassBlur: ' px', glassOpacity: '%', glassMax: ' 块' };
 
 var settings = null;
+var loaded = null;   // 页面打开（或上次保存）时的设置快照，保存时用来和存储里的最新值做三方合并
 
 function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); }
 
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+function same(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
 function fill(s) {
   settings = s;
+  loaded = clone(s);
   BOOLS.forEach(function (k) { $(k).checked = !!s[k]; });
   NUMS.forEach(function (k) {
     $(k).value = s[k];
@@ -77,6 +82,39 @@ function renderSites(s) {
   });
 }
 
+/* 保存前先读存储里的最新值再合并。
+ * 设置页常常开着很久，这期间在面板里改的站点模式、点选删除新加的元素都已经存进去了，
+ * 直接拿本页的旧副本整个写回去会把它们冲掉。
+ * 规则：本页没动过的项以存储为准；站点模式按站点逐个合并；删除元素的 HTML 把别处新加的补上。 */
+function mergeLatest(mine) {
+  return lgGetSettings().then(function (latest) {
+    var out = Object.assign({}, latest);
+    Object.keys(mine).forEach(function (k) {
+      if (k === 'siteModes' || k === 'hideHtml') return;
+      if (!same(mine[k], loaded[k])) out[k] = mine[k];
+    });
+
+    var sm = Object.assign({}, latest.siteModes || {});
+    var was = loaded.siteModes || {}, now = mine.siteModes || {};
+    Object.keys(was).forEach(function (h) { if (!(h in now)) delete sm[h]; });   // 本页点了"移除"的
+    out.siteModes = sm;
+
+    var base = loaded.hideHtml || [];
+    var html = (mine.hideHtml || []).slice();
+    (latest.hideHtml || []).forEach(function (x) {
+      if (base.indexOf(x) < 0 && html.indexOf(x) < 0) html.push(x);            // 本页打开后别处新加的
+    });
+    out.hideHtml = html;
+    return out;
+  });
+}
+
+function saveMerged() {
+  return mergeLatest(read()).then(function (s) {
+    return lgSaveSettings(s).then(function () { fill(s); flash(); });
+  });
+}
+
 function flash() {
   var el = $('saved');
   el.classList.add('on');
@@ -89,10 +127,7 @@ NUMS.forEach(function (k) {
   });
 });
 
-$('save').addEventListener('click', function () {
-  settings = read();
-  lgSaveSettings(settings).then(flash);
-});
+$('save').addEventListener('click', function () { saveMerged(); });
 
 $('reset').addEventListener('click', function () {
   var d = Object.assign({}, LG_DEFAULTS);
@@ -119,6 +154,5 @@ lgGetSettings().then(function (s) {
 /* 右下角的开发者开关：切换立即生效并保存，不用再点"保存" */
 $('devMode').addEventListener('change', function () {
   $('devArea').style.display = this.checked ? '' : 'none';
-  settings = read();
-  lgSaveSettings(settings).then(flash);
+  saveMerged();
 });
