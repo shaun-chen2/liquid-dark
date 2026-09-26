@@ -173,7 +173,9 @@
     var go = surfaceOpts();
     if (IS_TOP && (go.glass || go.roundCorners)) {
       glassOn = true;
-      LGGlass.start(go);
+      var h = document.documentElement;
+      h.setAttribute('data-lgscan', '');     // 首轮扫描要看到真实的可见性，见 preload.css
+      try { LGGlass.start(go); } finally { h.removeAttribute('data-lgscan'); }
     }
 
     markElems();

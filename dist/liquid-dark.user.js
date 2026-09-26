@@ -2,7 +2,7 @@
 // @name         液态玻璃深色
 // @name:en      Liquid Glass Dark
 // @namespace    https://github.com/shaun-chen2/liquid-dark
-// @version      1.9.9
+// @version      1.9.10
 // @description  把所有网站变成深色 + 苹果液态玻璃质感。优先用站点自带深色，没有才动态改色。
 // @description:en  Turns every website dark with an Apple-style liquid-glass finish.
 // @author       陈帅帅
@@ -91,7 +91,7 @@ function fetch(url) {
 (function () {
   var st = document.createElement('style');
   st.setAttribute('data-liquid-preload', '');
-  st.textContent = "/* 防白闪。\n *\n * 关键点：这里用 background-image 画深色，而不是 background-color。\n * 因为内容脚本稍后要读 html/body 的 computed background-color 来判断\n * \"这个站点是不是本来就有深色模式\"，用 background-color 会把探测结果污染掉。\n *\n * html[data-lgnobg] / html[data-lgnofg] 由内容脚本在决定不干预时打上，用来撤掉这里的规则。 */\n\nhtml:not([data-lgnobg]) {\n  background-image: linear-gradient(#141418, #141418) !important;\n  background-attachment: fixed !important;\n}\n\nhtml:not([data-lgnofg]) body {\n  color: #e7e7ec !important;\n}\n\n/* 拦截渲染：引擎第一轮改色完成前先不画正文，避免先闪一下原来的浅色页面。\n * 内容脚本处理完会给 html 打上 data-lgready 放行。\n * 兜底：纯 CSS 动画 1.5 秒后强制显示 —— 就算脚本报错或根本没跑（某些框架），也绝不会一直空白。\n * 动画能覆盖普通声明，所以这里 visibility 不能加 !important。 */\nhtml:not([data-lgready]) body {\n  visibility: hidden;\n  animation: lg-reveal 0s linear 1.5s forwards;\n}\n@keyframes lg-reveal { to { visibility: visible; } }\n";
+  st.textContent = "/* 防白闪。\n *\n * 关键点：这里用 background-image 画深色，而不是 background-color。\n * 因为内容脚本稍后要读 html/body 的 computed background-color 来判断\n * \"这个站点是不是本来就有深色模式\"，用 background-color 会把探测结果污染掉。\n *\n * html[data-lgnobg] / html[data-lgnofg] 由内容脚本在决定不干预时打上，用来撤掉这里的规则。 */\n\nhtml:not([data-lgnobg]) {\n  background-image: linear-gradient(#141418, #141418) !important;\n  background-attachment: fixed !important;\n}\n\nhtml:not([data-lgnofg]) body {\n  color: #e7e7ec !important;\n}\n\n/* 拦截渲染：引擎第一轮改色完成前先不画正文，避免先闪一下原来的浅色页面。\n * 内容脚本处理完会给 html 打上 data-lgready 放行。\n * 兜底：纯 CSS 动画 1.5 秒后强制显示 —— 就算脚本报错或根本没跑（某些框架），也绝不会一直空白。\n * 动画能覆盖普通声明，所以这里 visibility 不能加 !important。\n * data-lgscan：玻璃引擎首轮扫描时临时撤掉隐藏 —— 否则它读到的全是 visibility:hidden，\n * 一块玻璃都不认，要等放行后的补扫才出现，用户会看到\"过一会儿突然变玻璃\"。\n * 撤掉和恢复在同一段同步代码里，中间不会绘制，不会闪。 */\nhtml:not([data-lgready]):not([data-lgscan]) body {\n  visibility: hidden;\n  animation: lg-reveal 0s linear 1.5s forwards;\n}\n@keyframes lg-reveal { to { visibility: visible; } }\n";
   (document.head || document.documentElement).appendChild(st);
 })();
 
@@ -1056,8 +1056,70 @@ var LGGlass = (function () {
     if (v === '' && opts.glassAll && applied >= opts.glassMax) v = 'in';
     if (v === 'in') { if (appliedIn >= inMax()) return false; appliedIn++; }
     else { if (applied >= opts.glassMax) return false; applied++; }
+    keepSiteBackdrop(el);
+    // 只开圆角不开玻璃时根本没有模糊，不用查
+    if (opts.glass && (v === '' || v === 'edge') && movesDescendants(el, el)) el.setAttribute('data-lgnobf', '');
     el.setAttribute('data-lgg', v);
     return true;
+  }
+
+  /* ---------------- backdrop-filter 会挪动子元素 ----------------
+   *
+   * 按规范，backdrop-filter 不为 none 的元素会成为它里面 absolute / fixed 后代的包含块。
+   * 于是本来相对外层容器或视口定位的角标、下拉、悬浮按钮，一加真玻璃就改成相对这块玻璃定位，
+   * 整个跳走（假玻璃里的也一样 —— 它们的参照同样被外层真玻璃抢了）。
+   * 所以真玻璃加模糊之前先查：里面有会被"抢走参照"的定位元素，就不加模糊（data-lgnobf），
+   * 圆角、底色、描边、高光照旧。 */
+  var SCAN_CAP = 800;     // 后代太多查不过来，保守起见当作会挪
+
+  function gcs(el) { try { return getComputedStyle(el); } catch (e) { return null; } }
+
+  /* 这个祖先是不是已经是包含块了（fixed 只认 transform/filter 这类，absolute 还认定位）。
+   * ignoreBf：判断宿主时，它身上的模糊可能是我们自己加的，不能算"本来就是" */
+  function isContainingBlock(cs, forFixed, ignoreBf) {
+    if (!cs) return false;
+    if (!forFixed && cs.position !== 'static') return true;
+    return cs.transform !== 'none' || cs.filter !== 'none' || cs.perspective !== 'none' ||
+      (!ignoreBf && cs.backdropFilter && cs.backdropFilter !== 'none') ||
+      /paint|layout|strict|content/.test(cs.contain || '') ||
+      /transform|filter|perspective/.test(cs.willChange || '');
+  }
+
+  /* d 的包含块会不会因为 host 加了 backdrop-filter 而变成 host */
+  function anchorMoves(d, host) {
+    var cs = gcs(d);
+    if (!cs || (cs.position !== 'absolute' && cs.position !== 'fixed')) return false;
+    var fixed = cs.position === 'fixed';
+    for (var a = d.parentElement; a && a !== host; a = a.parentElement) {
+      if (isContainingBlock(gcs(a), fixed)) return false;      // 中途已有参照，不受影响
+    }
+    // host 本来就是参照也不受影响；它身上的模糊除非是站点自己的（keepbf），否则不算
+    return !!a && !isContainingBlock(gcs(host), fixed, !host.hasAttribute('data-lgkeepbf'));
+  }
+
+  /* root 自己及其后代里，有没有会被 host 抢走参照的 */
+  function movesDescendants(root, host) {
+    if (root !== host && anchorMoves(root, host)) return true;
+    var list = root.getElementsByTagName('*');
+    if (list.length > SCAN_CAP) return true;
+    for (var i = 0; i < list.length; i++) if (anchorMoves(list[i], host)) return true;
+    return false;
+  }
+
+  /* 站点自己给元素设了 backdrop-filter：内层 / 浮层也别给它改成 none */
+  function keepSiteBackdrop(el) {
+    if (el.hasAttribute('data-lgg') || el.hasAttribute('data-lgpop')) return;   // 已被我们改过，读到的不是站点原值
+    var cs = gcs(el);
+    if (cs && cs.backdropFilter && cs.backdropFilter !== 'none') el.setAttribute('data-lgkeepbf', '');
+  }
+
+  /* 新插进来的节点落在真玻璃里、且会被它抢走参照：撤掉那块玻璃的模糊。
+   * 在 MutationObserver 回调里同步做 —— 回调跑在绘制之前，子元素不会先跳一下。 */
+  var REAL_SEL = '[data-lgg=""]:not([data-lgnobf]),[data-lgg="edge"]:not([data-lgnobf])';
+  function guardAdded(node) {
+    if (!opts || !opts.glass) return;
+    var host = node.parentElement && node.parentElement.closest ? node.parentElement.closest(REAL_SEL) : null;
+    if (host && movesDescendants(node, host)) host.setAttribute('data-lgnobf', '');
   }
   function full() { return applied >= opts.glassMax && appliedIn >= inMax(); }
 
@@ -1103,14 +1165,15 @@ var LGGlass = (function () {
         'background-color:rgba(', tint, ',', a, ') !important;',
         // 顶边那道高光，液态玻璃的关键笔触
         'background-image:linear-gradient(to bottom,rgba(255,255,255,.070),rgba(255,255,255,.012) 38%,rgba(255,255,255,0) 72%) !important;',
-        '-webkit-backdrop-filter:blur(', b, 'px) saturate(180%) !important;',
-        'backdrop-filter:blur(', b, 'px) saturate(180%) !important;',
         // outline 不参与布局，border 会撑大盒子
         'outline:1px solid rgba(255,255,255,.11) !important;outline-offset:-1px !important;',
         'box-shadow:inset 0 1px 0 rgba(255,255,255,.14),',
         'inset 0 -1px 0 rgba(0,0,0,.30),',
         '0 10px 34px rgba(0,0,0,.34) !important}'
       ].join(''));
+      parts.push('html [data-lgg=""],html [data-lgg="edge"]{' +
+        '-webkit-backdrop-filter:blur(' + b + 'px) saturate(180%) !important;' +
+        'backdrop-filter:blur(' + b + 'px) saturate(180%) !important}');
       parts.push('html [data-lgg="edge"]{outline:none !important;' +
         'box-shadow:inset 0 -1px 0 rgba(255,255,255,.10),0 8px 28px rgba(0,0,0,.30) !important}');
 
@@ -1121,7 +1184,6 @@ var LGGlass = (function () {
         'html [data-lgg="in"]{',
         'background-color:rgba(', lift, ',', ai, ') !important;',
         'background-image:linear-gradient(to bottom,rgba(', lift, ',.06),rgba(', lift, ',0) 60%) !important;',
-        '-webkit-backdrop-filter:none !important;backdrop-filter:none !important;',
         'outline:1px solid rgba(', lift, ',.10) !important;outline-offset:-1px !important;',
         'box-shadow:inset 0 1px 0 rgba(', lift, ',.10),0 4px 16px rgba(0,0,0,.26) !important}'
       ].join(''));
@@ -1138,18 +1200,28 @@ var LGGlass = (function () {
     // 选择器重复一次是为了提权到 (0,2,1)，压过 `html [data-lgg]` 的半透明玻璃，
     // 这样即使别处把它判成了普通玻璃面，浮窗也不会变成半透明
     parts.push('html [data-lgpop][data-lgpop]{background-color:#23232b !important;' +
-      'background-image:none !important;' +
-      '-webkit-backdrop-filter:none !important;backdrop-filter:none !important}');
+      'background-image:none !important}');
 
     // 浮层（下拉、菜单、气泡）一律不透明，不做磨砂。
     // 半透明 + 模糊压在正文上会把菜单文字糊掉，可读性优先于观感。
     parts.push([
       'html [data-lgg="pop"]{',
       'background-color:#23232b !important;background-image:none !important;',
-      '-webkit-backdrop-filter:none !important;backdrop-filter:none !important;',
       'outline:1px solid rgba(255,255,255,.12) !important;outline-offset:-1px !important;',
       'box-shadow:0 14px 40px rgba(0,0,0,.55) !important}'
     ].join(''));
+
+    /* 不做模糊的几类：内层、浮层、预标记的浮窗、以及会挪动子元素而撤掉模糊的真玻璃（nobf）。
+     * 站点自己本来就有 backdrop-filter 的（keepbf）不去掉 —— 它可能正是里面 fixed 子元素的定位参照，
+     * 改成 none 会让那些子元素跑位。选择器带 :not()，权重压得过上面真玻璃那条。 */
+    parts.push('html [data-lgg="in"]:not([data-lgkeepbf]),html [data-lgg="pop"]:not([data-lgkeepbf]),' +
+      'html [data-lgpop][data-lgpop]:not([data-lgkeepbf]),html [data-lgg][data-lgnobf]:not([data-lgkeepbf]){' +
+      '-webkit-backdrop-filter:none !important;backdrop-filter:none !important}');
+    if (opts.glass) {
+      // 没有模糊的真玻璃：半透明会直接透出背后的字，底色加厚
+      parts.push('html [data-lgg][data-lgnobf]:not([data-lgg="in"]):not([data-lgg="pop"]){background-color:rgba(' +
+        (opts.invert ? '223,223,215' : '32,32,40') + ',' + Math.max(opts.glassOpacity / 100, 0.9).toFixed(3) + ') !important}');
+    }
 
     return parts.join('');
   }
@@ -1493,7 +1565,7 @@ var LGGlass = (function () {
       popCand.push(el);
       // 当前没有布局盒（藏着）的，先把底色铺上 —— 这就是"预加载"
       try {
-        if (el.getClientRects().length === 0) el.setAttribute('data-lgpop', '');
+        if (el.getClientRects().length === 0) { keepSiteBackdrop(el); el.setAttribute('data-lgpop', ''); }
       } catch (e) {}
     }
   }
@@ -1517,6 +1589,7 @@ var LGGlass = (function () {
       if (kind && applied < opts.glassMax) {
         // 候选是按浮窗选择器圈出来的，一旦够格成"面"，就一律按浮层处理，
         // 不允许落进半透明玻璃 —— 菜单半透明就读不清了
+        keepSiteBackdrop(el);
         el.setAttribute('data-lgg', 'pop');
         el.setAttribute('data-lgpop', '');
         applied++;
@@ -1607,7 +1680,11 @@ var LGGlass = (function () {
       mo = new MutationObserver(function (list) {
         for (var i = 0; i < list.length; i++) {
           var a = list[i].addedNodes;
-          for (var j = 0; j < a.length; j++) if (a[j].nodeType === 1) queue.push(a[j]);
+          for (var j = 0; j < a.length; j++) {
+            if (a[j].nodeType !== 1) continue;
+            queue.push(a[j]);
+            guardAdded(a[j]);
+          }
         }
         if (queue.length) scanSoon();
       });
@@ -1666,6 +1743,8 @@ var LGGlass = (function () {
       for (var i = 0; i < els.length; i++) els[i].removeAttribute('data-lgg');
       var bds = document.querySelectorAll('[data-lgbd]');
       for (var k = 0; k < bds.length; k++) bds[k].removeAttribute('data-lgbd');
+      var nbs = document.querySelectorAll('[data-lgnobf],[data-lgkeepbf]');
+      for (var z = 0; z < nbs.length; z++) { nbs[z].removeAttribute('data-lgnobf'); nbs[z].removeAttribute('data-lgkeepbf'); }
       var pps = document.querySelectorAll('[data-lgpop]');
       for (var q = 0; q < pps.length; q++) pps[q].removeAttribute('data-lgpop');
       applied = 0;
@@ -2022,7 +2101,9 @@ var LGPrefers = (function () {
     var go = surfaceOpts();
     if (IS_TOP && (go.glass || go.roundCorners)) {
       glassOn = true;
-      LGGlass.start(go);
+      var h = document.documentElement;
+      h.setAttribute('data-lgscan', '');     // 首轮扫描要看到真实的可见性，见 preload.css
+      try { LGGlass.start(go); } finally { h.removeAttribute('data-lgscan'); }
     }
 
     markElems();
