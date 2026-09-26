@@ -64,6 +64,16 @@ var LGGlass = (function () {
     return true;
   }
   function full() { return applied >= opts.glassMax && appliedIn >= inMax(); }
+
+  /* 额度按页面上实际还在的玻璃重新数一遍。
+   * 只加不减的话，SPA 换页后旧面板已经从 DOM 里没了，额度却还占着，新页面就一块玻璃都没有。
+   * 属性选择器是浏览器原生匹配，很便宜。 */
+  function recount() {
+    try {
+      appliedIn = document.querySelectorAll('[data-lgg="in"]').length;
+      applied = document.querySelectorAll('[data-lgg]').length - appliedIn;
+    } catch (e) {}
+  }
   var mo = null;
   var timer = 0;
   var running = false;
@@ -450,6 +460,7 @@ var LGGlass = (function () {
   var sliceGen = 0;
   function scanSliced(after) {
     var gen = ++sliceGen;                 // 新一轮开始时，旧的那轮自动作废
+    recount();
     var els;
     try { els = document.querySelectorAll('*'); } catch (e) { return; }
     var i = 0;
@@ -495,6 +506,7 @@ var LGGlass = (function () {
    * 显示出来但其实不是浮层的，把预标记撤掉。 */
   function checkPopCandidates() {
     if (!running || !opts) return;
+    if (popCand.length) recount();
     var keep = [];
     for (var i = 0; i < popCand.length; i++) {
       var el = popCand[i];
@@ -564,6 +576,7 @@ var LGGlass = (function () {
 
   function flushQueue() {
     timer = 0;
+    recount();
     var q = queue;
     queue = [];
     for (var i = 0; i < q.length && !full(); i++) {
@@ -665,6 +678,6 @@ var LGGlass = (function () {
       queue = [];
     },
 
-    stats: function () { return { surfaces: applied, nested: appliedIn }; }
+    stats: function () { if (running) recount(); return { surfaces: applied, nested: appliedIn }; }
   };
 })();

@@ -2,7 +2,7 @@
 // @name         液态玻璃深色
 // @name:en      Liquid Glass Dark
 // @namespace    https://github.com/shaun-chen2/liquid-dark
-// @version      1.9.8
+// @version      1.9.9
 // @description  把所有网站变成深色 + 苹果液态玻璃质感。优先用站点自带深色，没有才动态改色。
 // @description:en  Turns every website dark with an Apple-style liquid-glass finish.
 // @author       陈帅帅
@@ -258,6 +258,12 @@ function lgHtmlPattern(html) {
   if (!e) return null;
   var sel = e.tagName.toLowerCase();
   var esc = (window.CSS && CSS.escape) ? CSS.escape : function (x) { return String(x).replace(/["\\]/g, '\\$&'); };
+  // 引号里的属性值：引号、反斜杠要转义，换行在 CSS 字符串里不合法，要写成 \a 这种形式
+  var quote = function (x) {
+    return String(x).replace(/["\\]/g, '\\$&').replace(/[\n\r\f]/g, function (c) {
+      return '\\' + c.charCodeAt(0).toString(16) + ' ';
+    });
+  };
   for (var i = 0; i < e.attributes.length; i++) {
     var a = e.attributes[i];
     if (a.name === 'style' || a.name.indexOf('data-lg') === 0) continue;
@@ -266,7 +272,8 @@ function lgHtmlPattern(html) {
     } else if (a.name === 'id') {
       sel += '#' + esc(a.value);
     } else {
-      sel += '[' + a.name + '="' + String(a.value).replace(/["\\]/g, '\\$&') + '"]';
+      // 属性名也要转义：Alpine / Vue 的 @click、x-on:click 直接拼进选择器是非法的
+      sel += '[' + esc(a.name) + '="' + quote(a.value) + '"]';
     }
   }
   try { document.querySelector(sel); } catch (x) { return null; }
@@ -603,15 +610,21 @@ var LGDark = (function () {
 
   /* ---------------- 单个元素 ---------------- */
 
-  function processEl(el) {
+  /* again = 重算已处理过的元素：不再占额度。
+   * 否则站点每改一次 class/style 就多吃一个额度，长时间开着的 SPA 迟早用完，
+   * 之后 reprocess 摘掉令牌却加不回来，元素直接闪回原来的浅色。 */
+  function processEl(el, again) {
     if (!el || el.nodeType !== 1 || seen.has(el)) return;
     var tag = el.tagName;
     if (typeof tag !== 'string') return;
     if (SKIP[tag.toUpperCase()]) return;
     if (el.namespaceURI && el.namespaceURI.indexOf('/svg') !== -1) return;
 
+    if (!again) {
+      if (count >= MAX_ELEMENTS) { truncated = true; return; }
+      count++;
+    }
     seen.add(el);
-    if (++count > MAX_ELEMENTS) { truncated = true; return; }
     if (lgElemIs(el, 'darkBlock')) return;               // 元素黑名单：保留原色
 
     var cs;
@@ -657,9 +670,10 @@ var LGDark = (function () {
   }
 
   function reprocess(el) {
+    if (!seen.has(el)) { processEl(el); return; }     // 没处理过（含超额没处理的），走正常流程
     seen.delete(el);
     if (el.hasAttribute && el.hasAttribute('data-lgd')) el.removeAttribute('data-lgd');
-    processEl(el);
+    processEl(el, true);
   }
 
   /* ---------------- canvas ---------------- */
@@ -765,7 +779,10 @@ var LGDark = (function () {
       var hasKids = !!(kids && kids.length);
 
       if (!isStyle) {
-        if (r.name !== undefined) continue;              // @keyframes，跳过
+        /* @keyframes 要跳过，但不能靠 `r.name` 认 —— @layer 块也有 name，
+         * 那样会把 @layer 里的规则整块漏掉（Tailwind v4 全在 @layer 里）。
+         * 关键帧规则的子项带 keyText，别的分组规则没有。 */
+        if (hasKids && kids[0].keyText !== undefined) continue;
         if (hasKids) {
           var cond = (r.media && r.media.mediaText) || media;
           walkCssRules(kids, cond, acc);
@@ -1043,6 +1060,16 @@ var LGGlass = (function () {
     return true;
   }
   function full() { return applied >= opts.glassMax && appliedIn >= inMax(); }
+
+  /* 额度按页面上实际还在的玻璃重新数一遍。
+   * 只加不减的话，SPA 换页后旧面板已经从 DOM 里没了，额度却还占着，新页面就一块玻璃都没有。
+   * 属性选择器是浏览器原生匹配，很便宜。 */
+  function recount() {
+    try {
+      appliedIn = document.querySelectorAll('[data-lgg="in"]').length;
+      applied = document.querySelectorAll('[data-lgg]').length - appliedIn;
+    } catch (e) {}
+  }
   var mo = null;
   var timer = 0;
   var running = false;
@@ -1429,6 +1456,7 @@ var LGGlass = (function () {
   var sliceGen = 0;
   function scanSliced(after) {
     var gen = ++sliceGen;                 // 新一轮开始时，旧的那轮自动作废
+    recount();
     var els;
     try { els = document.querySelectorAll('*'); } catch (e) { return; }
     var i = 0;
@@ -1474,6 +1502,7 @@ var LGGlass = (function () {
    * 显示出来但其实不是浮层的，把预标记撤掉。 */
   function checkPopCandidates() {
     if (!running || !opts) return;
+    if (popCand.length) recount();
     var keep = [];
     for (var i = 0; i < popCand.length; i++) {
       var el = popCand[i];
@@ -1543,6 +1572,7 @@ var LGGlass = (function () {
 
   function flushQueue() {
     timer = 0;
+    recount();
     var q = queue;
     queue = [];
     for (var i = 0; i < q.length && !full(); i++) {
@@ -1644,7 +1674,7 @@ var LGGlass = (function () {
       queue = [];
     },
 
-    stats: function () { return { surfaces: applied, nested: appliedIn }; }
+    stats: function () { if (running) recount(); return { surfaces: applied, nested: appliedIn }; }
   };
 })();
 
@@ -1719,8 +1749,9 @@ var LGPrefers = (function () {
         continue;
       }
 
-      if (r.name !== undefined) continue;            // @keyframes
       if (!hasKids) continue;                        // @font-face / @import
+      // @keyframes：子项带 keyText。别用 r.name 认，@layer 块也有 name
+      if (kids[0].keyText !== undefined) continue;
 
       // @media 才保留条件；@supports 之类只往下走，条件丢掉
       var isMedia = !!r.media;
@@ -1849,6 +1880,7 @@ var LGPrefers = (function () {
   var started = false;
   var glassOn = false;
   var prefersOn = false;
+  var decideKey = '';        // 决定走哪条路的那几项设置，变了就整个重新判定
 
   function send(msg) {
     try {
@@ -2010,8 +2042,13 @@ var LGPrefers = (function () {
     report();
   }
 
+  function modeKey() {
+    return [lgModeFor(settings, HOST), !!settings.respectNativeDark, !!settings.nativeOverride].join('|');
+  }
+
   function decideAndStart() {
     var m = lgModeFor(settings, HOST);
+    decideKey = modeKey();
 
     if (m === 'off') {
       retirePreload();
@@ -2082,22 +2119,17 @@ var LGPrefers = (function () {
   /* ---------------- 设置热更新 ---------------- */
 
   function onSettings(next) {
-    var prevMode = effMode;
-    var prevGlass = glassOn;
     settings = next;
 
-    var m = lgModeFor(settings, HOST);
-    var want = m;
-    if (m === 'auto') want = (nativeDark && settings.respectNativeDark) ? 'native' : 'dynamic';
-
-    // 模式变了：整个推倒重来
-    if (want !== prevMode) {
+    /* 模式相关的设置变了：全部撤掉，再走一遍和页面加载时一样的判定。
+     *  - 站点深色规则（LGPrefers）也要撤，否则关掉之后页面还是深的，切到动态改色还会两套打架
+     *  - auto 要重新探测：页面一开始是"关闭"的话根本没探测过，nativeDark 是个没意义的初值 */
+    if (modeKey() !== decideKey) {
       LGDark.stop();
-      if (prevGlass) { LGGlass.stop(); glassOn = false; }
+      if (glassOn) { LGGlass.stop(); glassOn = false; }
+      if (prefersOn) { LGPrefers.stop(); prefersOn = false; }
       started = false;
-      effMode = want;
-      if (want === 'off') { retirePreload(); report(); return; }
-      whenBody(startEngines);
+      decideAndStart();
       return;
     }
 

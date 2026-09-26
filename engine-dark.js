@@ -166,15 +166,21 @@ var LGDark = (function () {
 
   /* ---------------- 单个元素 ---------------- */
 
-  function processEl(el) {
+  /* again = 重算已处理过的元素：不再占额度。
+   * 否则站点每改一次 class/style 就多吃一个额度，长时间开着的 SPA 迟早用完，
+   * 之后 reprocess 摘掉令牌却加不回来，元素直接闪回原来的浅色。 */
+  function processEl(el, again) {
     if (!el || el.nodeType !== 1 || seen.has(el)) return;
     var tag = el.tagName;
     if (typeof tag !== 'string') return;
     if (SKIP[tag.toUpperCase()]) return;
     if (el.namespaceURI && el.namespaceURI.indexOf('/svg') !== -1) return;
 
+    if (!again) {
+      if (count >= MAX_ELEMENTS) { truncated = true; return; }
+      count++;
+    }
     seen.add(el);
-    if (++count > MAX_ELEMENTS) { truncated = true; return; }
     if (lgElemIs(el, 'darkBlock')) return;               // 元素黑名单：保留原色
 
     var cs;
@@ -220,9 +226,10 @@ var LGDark = (function () {
   }
 
   function reprocess(el) {
+    if (!seen.has(el)) { processEl(el); return; }     // 没处理过（含超额没处理的），走正常流程
     seen.delete(el);
     if (el.hasAttribute && el.hasAttribute('data-lgd')) el.removeAttribute('data-lgd');
-    processEl(el);
+    processEl(el, true);
   }
 
   /* ---------------- canvas ---------------- */
@@ -328,7 +335,10 @@ var LGDark = (function () {
       var hasKids = !!(kids && kids.length);
 
       if (!isStyle) {
-        if (r.name !== undefined) continue;              // @keyframes，跳过
+        /* @keyframes 要跳过，但不能靠 `r.name` 认 —— @layer 块也有 name，
+         * 那样会把 @layer 里的规则整块漏掉（Tailwind v4 全在 @layer 里）。
+         * 关键帧规则的子项带 keyText，别的分组规则没有。 */
+        if (hasKids && kids[0].keyText !== undefined) continue;
         if (hasKids) {
           var cond = (r.media && r.media.mediaText) || media;
           walkCssRules(kids, cond, acc);
