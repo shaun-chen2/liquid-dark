@@ -2,7 +2,7 @@
 
 var $ = function (id) { return document.getElementById(id); };
 
-var BOOLS = ['enabled', 'nativeOverride', 'respectNativeDark', 'holdRender', 'allowOnly', 'darkenCanvas', 'roundCorners', 'glass', 'ambience'];
+var BOOLS = ['enabled', 'nativeOverride', 'respectNativeDark', 'holdRender', 'allowOnly', 'darkenCanvas', 'roundCorners', 'glass', 'glassAll', 'ambience'];
 var NUMS = ['darkness', 'contrast', 'radius', 'glassBlur', 'glassOpacity', 'glassMax'];
 var UNITS = { darkness: '%', contrast: '%', radius: ' px', glassBlur: ' px', glassOpacity: '%', glassMax: ' 块' };
 

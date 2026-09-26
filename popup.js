@@ -3,7 +3,7 @@
 var $ = function (id) { return document.getElementById(id); };
 
 var SLIDERS = ['darkness', 'contrast', 'radius', 'glassBlur', 'glassOpacity'];
-var TOGGLES = ['roundCorners', 'glass', 'ambience'];
+var TOGGLES = ['roundCorners', 'glass', 'glassAll', 'ambience'];
 var UNITS = { darkness: '%', contrast: '%', radius: ' px', glassBlur: ' px', glassOpacity: '%' };
 
 var tab = null;

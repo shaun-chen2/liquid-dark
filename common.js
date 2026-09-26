@@ -33,6 +33,7 @@ var LG_DEFAULTS = {
   radius: 14,           // 圆角半径 px
 
   glass: true,          // 液态玻璃（磨砂 + 半透明 + 高光 + 描边）
+  glassAll: true,       // 全面玻璃：凡是有底色/边框/投影的块都做圆角 + 玻璃（关掉则只挑卡片、导航这类面板）
   glassBlur: 26,        // 背景模糊半径 px
   glassOpacity: 55,     // 玻璃不透明度 0-100
   glassMax: 30,         // 单页最多几块模糊面板（内层另算）

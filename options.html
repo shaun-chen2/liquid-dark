@@ -129,6 +129,8 @@
     <div class="num"><span>通透度</span><input type="range" id="glassOpacity" min="20" max="95" step="5"><span class="v" id="v_glassOpacity"></span></div>
     <div class="num"><span>单页最多几块玻璃</span><input type="range" id="glassMax" min="5" max="80" step="5"><span class="v" id="v_glassMax"></span></div>
     <p class="note">backdrop-filter 很吃 GPU，块数上限是性能闸门。页面卡就把它调小。</p>
+      <label class="item"><input type="checkbox" id="glassAll">
+      <span class="txt"><b>全面玻璃</b><small>凡是有底色、边框或投影的块（容器、卡片、按钮、输入框、列表项）都做圆角 + 玻璃。只有最外层做真模糊（受块数上限约束），里面都是不模糊的内层玻璃，开销小。关掉则只挑卡片、导航、弹窗这类面板。</small></span></label>
   </section>
 
   <div id="devArea" style="display:none">

@@ -48,16 +48,22 @@ var LGGlass = (function () {
   var styleEl = null;
   var applied = 0;
   var appliedIn = 0;
-  var IN_MAX = 80;   // 内层不做 backdrop-filter，便宜得多，额度单独算
+  var IN_MAX = 80;       // 全面玻璃模式下见 inMax()   // 内层不做 backdrop-filter，便宜得多，额度单独算
+
+  // 全面玻璃模式下内层要能覆盖整页，额度放大；内层只是属性 + 纯 CSS，没有模糊开销
+  function inMax() { return opts && opts.glassAll ? 5000 : IN_MAX; }
 
   function mark(el, kind) {
     var v = kind === true ? '' : kind;
-    if (v === 'in') { if (appliedIn >= IN_MAX) return false; appliedIn++; }
+    // 全面玻璃：真模糊的额度用满后，其余外层降级成不模糊的玻璃，而不是整块跳过 ——
+    // 否则页面前半截有玻璃、后半截没有
+    if (v === '' && opts.glassAll && applied >= opts.glassMax) v = 'in';
+    if (v === 'in') { if (appliedIn >= inMax()) return false; appliedIn++; }
     else { if (applied >= opts.glassMax) return false; applied++; }
     el.setAttribute('data-lgg', v);
     return true;
   }
-  function full() { return applied >= opts.glassMax && appliedIn >= IN_MAX; }
+  function full() { return applied >= opts.glassMax && appliedIn >= inMax(); }
   var mo = null;
   var timer = 0;
   var running = false;
@@ -113,6 +119,12 @@ var LGGlass = (function () {
         'outline:1px solid rgba(', lift, ',.10) !important;outline-offset:-1px !important;',
         'box-shadow:inset 0 1px 0 rgba(', lift, ',.10),0 4px 16px rgba(0,0,0,.26) !important}'
       ].join(''));
+      // 内层玻璃的细边会盖掉输入框、按钮的焦点提示，聚焦时换成明显的蓝边
+      parts.push('html [data-lgg="in"]:focus,html [data-lgg="in"]:focus-visible{' +
+        'outline:2px solid rgba(122,150,255,.75) !important;outline-offset:1px !important}');
+      // 按钮、输入框做成玻璃后投影太重，收一点
+      parts.push('html button[data-lgg="in"],html input[data-lgg="in"],html select[data-lgg="in"],html textarea[data-lgg="in"]{' +
+        'box-shadow:inset 0 1px 0 rgba(' + lift + ',.10) !important}');
     }
 
     // 预标记：加载时就给隐藏的浮窗候选铺上不透明底色，
@@ -168,10 +180,86 @@ var LGGlass = (function () {
    * 关键判据是**宽度**不是面积。早期版本用 "面积 > 82% 视口就否决"，
    * 结果一根 870×5494 的内容主列（很常见的布局）直接被误杀成"页面底板"。
    * 长不等于大：真正该排除的是铺满整个视口宽度的包装层。 */
+  /* 全面玻璃：凡是"看得出是一块东西"的元素都做圆角 + 玻璃。
+   * 判据：有底色 / 边框 / 投影任一项，尺寸 ≥ 40×20。
+   * 真模糊只给最外层（受 glassMax 限制），里面一律是不模糊的内层玻璃，开销很小，
+   * 所以可以放得很宽。 */
+  var ALL_SKIP = {
+    HTML: 1, BODY: 1, IMG: 1, VIDEO: 1, AUDIO: 1, CANVAS: 1, IFRAME: 1, SVG: 1,
+    SCRIPT: 1, STYLE: 1, LINK: 1, HEAD: 1, META: 1, BR: 1, HR: 1, OPTION: 1,
+    TR: 1, TD: 1, TH: 1, TBODY: 1, THEAD: 1, TFOOT: 1, PRE: 1, CODE: 1, KBD: 1, SAMP: 1,
+    PICTURE: 1, SOURCE: 1, OBJECT: 1, EMBED: 1
+  };
+  var FORM = { INPUT: 1, TEXTAREA: 1, SELECT: 1, BUTTON: 1 };
+  var NO_BOX_INPUT = { checkbox: 1, radio: 1, range: 1, color: 1, file: 1, hidden: 1, image: 1 };
+
+  function isSurfaceAll(el, tag) {
+    if (ALL_SKIP[tag]) return false;
+    if (tag === 'INPUT' && NO_BOX_INPUT[(el.type || '').toLowerCase()]) return false;
+
+    var rect;
+    try { rect = el.getBoundingClientRect(); } catch (e) { return false; }
+    // 按钮、输入框天生就小，门槛单独放低
+    if (FORM[tag] ? (rect.width < 16 || rect.height < 14) : (rect.width < 40 || rect.height < 20)) return false;
+
+    var cs;
+    try { cs = getComputedStyle(el); } catch (e) { return false; }
+    if (cs.display === 'none' || cs.visibility === 'hidden' || cs.display === 'inline' || cs.display === 'contents') return false;
+
+    var bg = lgParseColor(cs.backgroundColor);
+    var hasBg = bg && bg.a > 0.05;
+    var hasShadow = cs.boxShadow && cs.boxShadow !== 'none';
+    var bw = parseFloat(cs.borderTopWidth) || 0;
+    var bc = lgParseColor(cs.borderTopColor);
+    var hasBorder = bw > 0 && bc && bc.a > 0.05 && cs.borderTopStyle !== 'none';
+    if (!hasBg && !hasShadow && !hasBorder && !FORM[tag]) return false;
+
+    var vw = window.innerWidth || 1200;
+    var pos = cs.position;
+    var host = el.parentElement && el.parentElement.closest ? el.parentElement.closest('[data-lgg]') : null;
+
+    if (host) {
+      if (host.getAttribute('data-lgg') === 'pop') return false;
+      var depth = 0, p = host;
+      while (p && depth < 8) {
+        depth++;
+        p = p.parentElement && p.parentElement.closest ? p.parentElement.closest('[data-lgg]') : null;
+      }
+      if (depth >= Math.max(opts.glassDepth || 1, 4)) return false;
+      // 和父级几乎一样大的纯包装层不单独成块，否则同一块地方叠好几层
+      var hr = host.getBoundingClientRect();
+      var ha = hr.width * hr.height;
+      if (!FORM[tag] && ha > 0 && rect.width * rect.height > ha * 0.85) return false;
+      return 'in';
+    }
+
+    if (FORM[tag]) return 'in';                       // 顶层的按钮、输入框也不做模糊，便宜
+    if (pos === 'fixed' || pos === 'sticky') return 'edge';
+    if (rect.width >= vw * 0.95) return false;          // 整页包装层
+    if (isPageColumn(rect)) return false;               // 整页高的主栏
+    return true;
+  }
+
   function isSurface(el) {
     var tag = el.tagName;
     if (typeof tag !== 'string') return false;
     tag = tag.toUpperCase();
+
+    if (opts && opts.glassAll && !el.hasAttribute('data-lgg') && !lgElemIs(el, 'glassBlock')) {
+      // 浮层仍走原来的判定（必须不透明）。只有类名 / role 像浮窗的才走 ——
+      // 否则每个元素都要多读一遍样式和尺寸，几千个元素的页面上整页重扫从几十毫秒涨到三百多毫秒
+      if (lgElemIs(el, 'glassForce')) return isSurfaceStrict(el, tag) || true;
+      var role = el.getAttribute('role');
+      if ((role && POP_ROLES[role.toLowerCase()]) || POP_CLASS.test(String(el.className || ''))) {
+        var popKind = isSurfaceStrict(el, tag);
+        if (popKind === 'pop') return 'pop';
+      }
+      return isSurfaceAll(el, tag);
+    }
+    return isSurfaceStrict(el, tag);
+  }
+
+  function isSurfaceStrict(el, tag) {
     if (SKIP[tag]) return false;
     if (el.hasAttribute('data-lgg')) return false;
     if (lgElemIs(el, 'glassBlock')) return false;      // 元素黑名单：不变玻璃
@@ -349,13 +437,37 @@ var LGGlass = (function () {
       var el = tops[i];
       var host = el.parentElement && el.parentElement.closest ? el.parentElement.closest('[data-lgg]') : null;
       if (!host || host.getAttribute('data-lgg') === 'pop') continue;
-      if (appliedIn >= IN_MAX) break;
+      if (appliedIn >= inMax()) break;
       el.setAttribute('data-lgg', 'in');
       applied--; appliedIn++;
     }
   }
 
   function scan() { scanIn(document); demoteNested(); }
+
+  /* 分片扫描：每跑 8 毫秒就让出主线程，几千个元素的整页重扫不会卡页面。
+   * 只用于后续重扫；第一轮仍然同步，保证放行渲染时玻璃已经就位。 */
+  var sliceGen = 0;
+  function scanSliced(after) {
+    var gen = ++sliceGen;                 // 新一轮开始时，旧的那轮自动作废
+    var els;
+    try { els = document.querySelectorAll('*'); } catch (e) { return; }
+    var i = 0;
+    (function step() {
+      if (!running || gen !== sliceGen) return;
+      var t = performance.now();
+      while (i < els.length && !full()) {
+        var el = els[i++];
+        if (!evaluated.has(el)) {
+          evaluated.add(el);
+          if (el.isConnected) { var k = isSurface(el); if (k) mark(el, k); }
+        }
+        if ((i & 31) === 0 && performance.now() - t > 8) { setTimeout(step, 0); return; }
+      }
+      demoteNested();
+      if (after) after();
+    })();
+  }
 
   /* ---------------- 浮窗预处理 ---------------- */
 
@@ -504,8 +616,7 @@ var LGGlass = (function () {
         setTimeout(function () {
           if (!running) return;
           evaluated = new WeakSet();
-          scan();
-          markBackdrops();
+          scanSliced(markBackdrops);
         }, ms);
       });
     },
@@ -527,8 +638,7 @@ var LGGlass = (function () {
     rescan: function () {
       if (!running) return;
       evaluated = new WeakSet();
-      scan();
-      markBackdrops();
+      scanSliced(markBackdrops);
       collectPopCandidates(true);
       checkPopCandidates();
     },
