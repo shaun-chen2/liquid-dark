@@ -7,7 +7,7 @@
 引擎、面板、设置页两个浏览器共用同一份源码，只有三个文件是平台特有的
 （见下方「Chrome 版」一节），所以修 bug 只需要改一处。
 
-**[▶ 从 Firefox 附加组件商店安装](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)** · Chrome 见[下方说明](#chrome-版)
+**[▶ 油猴脚本](https://raw.githubusercontent.com/shaun-chen2/liquid-dark/main/dist/liquid-dark.user.js)** · **[▶ 从 Firefox 附加组件商店安装](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)** · Chrome 见[下方说明](#chrome-版)
 
 ---
 
@@ -108,6 +108,14 @@ Chrome 本来就会对站点报告 `prefers-color-scheme: dark`，这一层基�
 **[👉 addons.mozilla.org · 液态玻璃深色](https://addons.mozilla.org/zh-CN/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)**
 
 点「添加到 Firefox」即可，之后新版本会自动更新。需要 Firefox 142+。
+
+### 油猴脚本（Tampermonkey / Violentmonkey，任何浏览器）
+
+装好油猴后打开 **[liquid-dark.user.js](https://raw.githubusercontent.com/shaun-chen2/liquid-dark/main/dist/liquid-dark.user.js)**，它会自动弹出安装页。之后有新版本会自动更新。
+
+没有工具栏面板和设置页，改用**油猴菜单**：本站模式切换、各项开关、🎯 点选删除元素、⚙ 编辑全部设置（JSON，黑白名单和元素名单都在里面）。
+和 Chrome 版一样没有 `browserSettings`，靠搬运站点自带的 `@media (prefers-color-scheme: dark)` 规则顶替第一层。
+脚本由 `build-userscript.sh` 从同一份源码生成，别手改 `dist/` 里的文件。
 
 ### Chrome
 
@@ -241,4 +249,5 @@ popup.*           工具栏面板（本身就用了一遍液态玻璃，顺便�
 options.*         设置页
 build.sh          打包成 xpi（Firefox）
 build-chrome.sh   从本目录生成 Chrome MV3 版并打 zip
+build-userscript.sh 生成油猴脚本 dist/liquid-dark.user.js
 ```

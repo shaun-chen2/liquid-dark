@@ -6,7 +6,7 @@ Turns every website dark, then layers on an Apple-style liquid-glass finish. **W
 
 The engines, popup and options page share one source tree across both browsers — only three files are platform-specific (see [Chrome build](#chrome-build)), so a bug fix only has to be written once.
 
-**[▶ Install from Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)** · for Chrome, see [below](#chrome-build)
+**[▶ Userscript](https://raw.githubusercontent.com/shaun-chen2/liquid-dark/main/dist/liquid-dark.user.js)** · **[▶ Install from Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)** · for Chrome, see [below](#chrome-build)
 
 ---
 
@@ -112,6 +112,14 @@ The substitute is `engine-prefers.js`: it parses stylesheets, lifts the rules th
 **[👉 addons.mozilla.org · Liquid Glass Dark](https://addons.mozilla.org/en-US/firefox/addon/%E6%B6%B2%E6%80%81%E7%8E%BB%E7%92%83%E6%B7%B1%E8%89%B2/)**
 
 Click "Add to Firefox" and you're done; future versions update automatically. Requires Firefox 142+.
+
+### Userscript (Tampermonkey / Violentmonkey, any browser)
+
+With a userscript manager installed, open **[liquid-dark.user.js](https://raw.githubusercontent.com/shaun-chen2/liquid-dark/main/dist/liquid-dark.user.js)** and it will offer to install. Updates arrive automatically.
+
+There is no toolbar popup or options page; use the **userscript menu** instead: per-site mode, feature toggles, 🎯 pick an element to delete, ⚙ edit all settings (JSON — site lists, element lists and hidden-element HTML all live there).
+Like the Chrome build there is no `browserSettings`, so layer 1 is replaced by lifting the site's own `@media (prefers-color-scheme: dark)` rules.
+The script is generated from the same sources by `build-userscript.sh`; don't hand-edit anything in `dist/`.
 
 ### Chrome
 
@@ -247,4 +255,5 @@ popup.*           Toolbar panel (itself built with the liquid-glass look, doubli
 options.*         Options page
 build.sh          Package as xpi (Firefox)
 build-chrome.sh   Generate the Chrome MV3 build from this directory and zip it
+build-userscript.sh Generate the userscript dist/liquid-dark.user.js
 ```

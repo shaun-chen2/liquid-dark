@@ -216,7 +216,7 @@
        * 改用"把站点自己的 @media (prefers-color-scheme: dark) 规则搬出来"来顶替。
        * 这一步必须跑在亮度探测之前 —— 否则会把明明有深色设计的站点
        * 误判成"没有深色"，白白走一遍动态改色。 */
-      if (LG_PLATFORM === 'chrome' && settings.nativeOverride) {
+      if (LG_PLATFORM !== 'firefox' && settings.nativeOverride) {
         prefersOn = LGPrefers.apply();
       }
 
