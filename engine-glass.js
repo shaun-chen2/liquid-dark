@@ -167,8 +167,9 @@ var LGGlass = (function () {
       parts.push([
         'html [data-lgg]{',
         'background-color:rgba(', tint, ',', a, ') !important;',
-        // 顶边那道高光，液态玻璃的关键笔触
-        'background-image:linear-gradient(to bottom,rgba(255,255,255,.070),rgba(255,255,255,.012) 38%,rgba(255,255,255,0) 72%) !important;',
+        /* 顶边那道高光，液态玻璃的关键笔触。
+         * 高度封顶 96px：按百分比铺的话，高面板的高光会盖住上面七成，里面每一层内容的上半截都被刷白 */
+        'background-image:linear-gradient(to bottom,rgba(255,255,255,.070),rgba(255,255,255,.012) min(38%,40px),rgba(255,255,255,0) min(72%,96px)) !important;',
         // outline 不参与布局，border 会撑大盒子
         'outline:1px solid rgba(255,255,255,.11) !important;outline-offset:-1px !important;',
         'box-shadow:inset 0 1px 0 rgba(255,255,255,.14),',
@@ -181,22 +182,22 @@ var LGGlass = (function () {
       parts.push('html [data-lgg="edge"]{outline:none !important;' +
         'box-shadow:inset 0 -1px 0 rgba(255,255,255,.10),0 8px 28px rgba(0,0,0,.30) !important}');
 
-      // 内层玻璃：不再模糊，薄白提亮（反色模式下给薄黑，反完就是提亮）
+      /* 内层玻璃：不再模糊，薄白提亮（反色模式下给薄黑，反完就是提亮）。
+       * 不用渐变顶光 —— 渐变会和外层的叠在一起越叠越白；顶边亮线由下面的 1px 内阴影负责 */
       var ai = (0.04 + (opts.glassOpacity / 100) * 0.06).toFixed(3);
       var lift = opts.invert ? '0,0,0' : '255,255,255';
       parts.push([
         'html [data-lgg="in"]{',
         'background-color:rgba(', lift, ',', ai, ') !important;',
-        'background-image:linear-gradient(to bottom,rgba(', lift, ',.06),rgba(', lift, ',0) 60%) !important;',
+        'background-image:none !important;',
         'outline:1px solid rgba(', lift, ',.10) !important;outline-offset:-1px !important;',
         'box-shadow:inset 0 1px 0 rgba(', lift, ',.10),0 4px 16px rgba(0,0,0,.26) !important}'
       ].join(''));
-      /* 叠层不累加：每层内层玻璃都铺一层薄白 + 顶光，一层层叠上去会越来越白（四层就发灰发白）。
-       * 第二层底色减半、去掉顶光；第三层起不再铺底，只靠描边分层 —— 亮度有上限，再深也不会更白。 */
+      /* 叠层不累加：薄白一层层叠上去会越来越白。只有第一层内层铺底，
+       * 再往里一律透明，只靠描边和顶边亮线分层 —— 不管嵌多深，亮度都只比外层高一档。 */
       parts.push('html [data-lgg="in"] [data-lgg="in"]{' +
-        'background-color:rgba(' + lift + ',' + (ai / 2).toFixed(3) + ') !important;background-image:none !important}');
-      parts.push('html [data-lgg="in"] [data-lgg="in"] [data-lgg="in"]{' +
-        'background-color:transparent !important;box-shadow:none !important}');
+        'background-color:transparent !important;' +
+        'box-shadow:inset 0 1px 0 rgba(' + lift + ',.08) !important}');
       // 内层玻璃的细边会盖掉输入框、按钮的焦点提示，聚焦时换成明显的蓝边
       parts.push('html [data-lgg="in"]:focus,html [data-lgg="in"]:focus-visible{' +
         'outline:2px solid rgba(122,150,255,.75) !important;outline-offset:1px !important}');
@@ -309,11 +310,13 @@ var LGGlass = (function () {
     if (host) {
       if (host.getAttribute('data-lgg') === 'pop') return false;
       var depth = 0, p = host;
-      while (p && depth < 8) {
+      while (p && depth < 12) {
         depth++;
         p = p.parentElement && p.parentElement.closest ? p.parentElement.closest('[data-lgg]') : null;
       }
-      if (depth >= Math.max(opts.glassDepth || 1, 4)) return false;
+      // 第二层起的内层是透明的，嵌多深都不会叠白，上限可以放宽 ——
+      // 否则超过上限的那几层回到普通深色，嵌在玻璃里像一个个黑洞
+      if (depth >= Math.max(opts.glassDepth || 1, 12)) return false;
       // 和父级几乎一样大的纯包装层不单独成块，否则同一块地方叠好几层
       var hr = host.getBoundingClientRect();
       var ha = hr.width * hr.height;
