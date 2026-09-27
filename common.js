@@ -159,6 +159,12 @@ function lgHtmlPattern(html) {
   if (!e) return null;
   var sel = e.tagName.toLowerCase();
   var esc = (window.CSS && CSS.escape) ? CSS.escape : function (x) { return String(x).replace(/["\\]/g, '\\$&'); };
+  // 引号里的属性值：引号、反斜杠要转义，换行在 CSS 字符串里不合法，要写成 \a 这种形式
+  var quote = function (x) {
+    return String(x).replace(/["\\]/g, '\\$&').replace(/[\n\r\f]/g, function (c) {
+      return '\\' + c.charCodeAt(0).toString(16) + ' ';
+    });
+  };
   for (var i = 0; i < e.attributes.length; i++) {
     var a = e.attributes[i];
     if (a.name === 'style' || a.name.indexOf('data-lg') === 0) continue;
@@ -167,7 +173,8 @@ function lgHtmlPattern(html) {
     } else if (a.name === 'id') {
       sel += '#' + esc(a.value);
     } else {
-      sel += '[' + a.name + '="' + String(a.value).replace(/["\\]/g, '\\$&') + '"]';
+      // 属性名也要转义：Alpine / Vue 的 @click、x-on:click 直接拼进选择器是非法的
+      sel += '[' + esc(a.name) + '="' + quote(a.value) + '"]';
     }
   }
   try { document.querySelector(sel); } catch (x) { return null; }

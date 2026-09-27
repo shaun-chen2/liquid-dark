@@ -68,8 +68,9 @@ var LGPrefers = (function () {
         continue;
       }
 
-      if (r.name !== undefined) continue;            // @keyframes
       if (!hasKids) continue;                        // @font-face / @import
+      // @keyframes：子项带 keyText。别用 r.name 认，@layer 块也有 name
+      if (kids[0].keyText !== undefined) continue;
 
       // @media 才保留条件；@supports 之类只往下走，条件丢掉
       var isMedia = !!r.media;
