@@ -193,11 +193,17 @@ var LGGlass = (function () {
         'outline:1px solid rgba(', lift, ',.10) !important;outline-offset:-1px !important;',
         'box-shadow:inset 0 1px 0 rgba(', lift, ',.10),0 4px 16px rgba(0,0,0,.26) !important}'
       ].join(''));
-      /* 叠层不累加：薄白一层层叠上去会越来越白。只有第一层内层铺底，
-       * 再往里一律透明，只靠描边和顶边亮线分层 —— 不管嵌多深，亮度都只比外层高一档。 */
-      parts.push('html [data-lgg="in"] [data-lgg="in"]{' +
-        'background-color:transparent !important;' +
-        'box-shadow:inset 0 1px 0 rgba(' + lift + ',.08) !important}');
+      /* 叠层：每层都要看得出是一块，但不能越叠越白 —— 半透明白一层层往上叠，亮度只会一路涨。
+       * 所以一亮一暗交替：偶数层压一层薄黑，奇数层再提回来。
+       * 两个系数配成一对，亮度只在两个值之间来回（收敛到固定点，和外层底色无关），嵌多深都不漂白。
+       * CSS 数不了任意深度的奇偶，按层数逐条生成，越深的选择器越长、权重越高，自然覆盖浅层的。 */
+      var dim = opts.invert ? '255,255,255' : '0,0,0';
+      var sel = 'html [data-lgg="in"]';
+      for (var lv = 2; lv <= 12; lv++) {
+        sel += ' [data-lgg="in"]';
+        parts.push(sel + '{background-color:rgba(' + (lv % 2 ? lift + ',.040' : dim + ',.200') + ') !important;' +
+          'box-shadow:inset 0 1px 0 rgba(' + lift + ',.08) !important}');
+      }
       // 内层玻璃的细边会盖掉输入框、按钮的焦点提示，聚焦时换成明显的蓝边
       parts.push('html [data-lgg="in"]:focus,html [data-lgg="in"]:focus-visible{' +
         'outline:2px solid rgba(122,150,255,.75) !important;outline-offset:1px !important}');
