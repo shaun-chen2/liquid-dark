@@ -2,7 +2,7 @@
 // @name         液态玻璃深色
 // @name:en      Liquid Glass Dark
 // @namespace    https://github.com/shaun-chen2/liquid-dark
-// @version      1.9.13
+// @version      2.0.0
 // @description  把所有网站变成深色 + 苹果液态玻璃质感。优先用站点自带深色，没有才动态改色。
 // @description:en  Turns every website dark with an Apple-style liquid-glass finish.
 // @author       陈帅帅
